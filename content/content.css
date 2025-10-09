@@ -1,0 +1,62 @@
+/* Content Script CSS for Auto-Fill Extension */
+/* Injected styles for form field highlighting and visual feedback */
+
+/* Highlighted field styles */
+.autofill-highlighted {
+  border: 2px solid #ffe600 !important;
+  background-color: #fffbcc !important;
+  transition: all 0.3s ease !important;
+}
+
+.autofill-filled {
+  border: 2px solid #44ff44 !important;
+  background-color: #f0fff0 !important;
+  animation: autofill-pulse 0.5s ease-in-out !important;
+}
+
+/* Detection indicator */
+.autofill-detected::after {
+  content: "🤖";
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 12px;
+  background: #ffe600;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+/* Pulse animation for filled fields */
+@keyframes autofill-pulse {
+  0% { 
+    transform: scale(1); 
+    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0.7); 
+  }
+  50% { 
+    transform: scale(1.02); 
+    box-shadow: 0 0 0 5px rgba(255, 230, 0, 0.3); 
+  }
+  100% { 
+    transform: scale(1); 
+    box-shadow: 0 0 0 0 rgba(255, 230, 0, 0); 
+  }
+}
+
+/* Error state */
+.autofill-error {
+  border: 2px solid #ff4444 !important;
+  background-color: #fff0f0 !important;
+  animation: autofill-shake 0.5s ease-in-out !important;
+}
+
+/* Shake animation for errors */
+@keyframes autofill-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}

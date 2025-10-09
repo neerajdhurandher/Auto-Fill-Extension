@@ -1,0 +1,76 @@
+{
+  "manifest_version": 3,
+  "name": "Auto-Fill Job Application Assistant",
+  "version": "1.0.0",
+  "description": "Automatically fill job application forms with your stored profile data. Supports LinkedIn, Indeed, Glassdoor and more.",
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://www.indeed.com/*",
+    "https://www.glassdoor.com/*",
+    "https://www.monster.com/*",
+    "https://www.ziprecruiter.com/*"
+  ],
+  
+  "background": {
+    "service_worker": "background/serviceWorker.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/*",
+        "https://www.indeed.com/*",
+        "https://www.glassdoor.com/*",
+        "https://www.monster.com/*",
+        "https://www.ziprecruiter.com/*"
+      ],
+      "js": [
+        "utils/performance.js",
+        "utils/advancedDetector.js", 
+        "utils/autoFillEngine.js",
+        "content/enhancedDetector.js"
+      ],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Auto-Fill Assistant",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  
+  "options_page": "options/options.html",
+  
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/content.css",
+        "utils/performance.js",
+        "utils/advancedDetector.js",
+        "utils/autoFillEngine.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

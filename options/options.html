@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Fill Assistant - Settings</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="header__title">Auto-Fill Assistant Settings</h1>
+            <p class="header__subtitle">Configure your profile and preferences</p>
+        </header>
+
+        <main class="main">
+            <nav class="nav">
+                <button class="nav__button nav__button--active" data-tab="profile">
+                    <span class="nav__icon">👤</span>
+                    Profile
+                </button>
+                <button class="nav__button" data-tab="security">
+                    <span class="nav__icon">🔒</span>
+                    Security
+                </button>
+                <button class="nav__button" data-tab="portals">
+                    <span class="nav__icon">🌐</span>
+                    Portals
+                </button>
+                <button class="nav__button" data-tab="about">
+                    <span class="nav__icon">ℹ️</span>
+                    About
+                </button>
+            </nav>
+
+            <div class="content">
+                <!-- Profile Tab -->
+                <section class="tab tab--active" id="profile">
+                    <h2 class="tab__title">Personal Information</h2>
+                    
+                    <form class="form" id="profileForm">
+                        <div class="form-section">
+                            <h3 class="form-section__title">Basic Details</h3>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="firstName">First Name *</label>
+                                    <input class="form-input" type="text" id="firstName" required 
+                                           placeholder="Enter your first name">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="lastName">Last Name *</label>
+                                    <input class="form-input" type="text" id="lastName" required 
+                                           placeholder="Enter your last name">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="email">Email Address *</label>
+                                <input class="form-input" type="email" id="email" required 
+                                       placeholder="Enter your email address">
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group form-group--small">
+                                    <label class="form-label" for="phoneCountryCode">Country Code</label>
+                                    <select class="form-input" id="phoneCountryCode">
+                                        <option value="+1">+1 (US/CA)</option>
+                                        <option value="+91">+91 (India)</option>
+                                        <option value="+44">+44 (UK)</option>
+                                        <option value="+61">+61 (Australia)</option>
+                                        <option value="+49">+49 (Germany)</option>
+                                        <option value="+33">+33 (France)</option>
+                                        <option value="+86">+86 (China)</option>
+                                        <option value="+81">+81 (Japan)</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="phoneNumber">Phone Number</label>
+                                    <input class="form-input" type="tel" id="phoneNumber" 
+                                           placeholder="Enter your phone number">
+                                </div>
+                                <div class="form-group form-group--small">
+                                    <label class="form-label" for="phoneType">Type</label>
+                                    <select class="form-input" id="phoneType">
+                                        <option value="mobile">Mobile</option>
+                                        <option value="home">Home</option>
+                                        <option value="work">Work</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3 class="form-section__title">Address Information</h3>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="addressLine1">Address Line 1 *</label>
+                                <input class="form-input" type="text" id="addressLine1" 
+                                       placeholder="Street address, apartment, suite, etc.">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="addressLine2">Address Line 2</label>
+                                <input class="form-input" type="text" id="addressLine2" 
+                                       placeholder="Additional address information (optional)">
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="city">City *</label>
+                                    <input class="form-input" type="text" id="city" 
+                                           placeholder="Enter your city">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="postalCode">Postal Code</label>
+                                    <input class="form-input" type="text" id="postalCode" 
+                                           placeholder="Zip/Postal code">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="country">Country *</label>
+                                <select class="form-input" id="country">
+                                    <option value="">Select Country</option>
+                                    <option value="US">United States</option>
+                                    <option value="CA">Canada</option>
+                                    <option value="IN">India</option>
+                                    <option value="UK">United Kingdom</option>
+                                    <option value="AU">Australia</option>
+                                    <option value="DE">Germany</option>
+                                    <option value="FR">France</option>
+                                    <option value="CN">China</option>
+                                    <option value="JP">Japan</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3 class="form-section__title">Professional Experience</h3>
+                            
+                            <div class="experience-header">
+                                <p class="form-help-text">Add your work experience. Most recent job first.</p>
+                                <button type="button" class="btn btn--secondary btn--small" id="addExperienceBtn">
+                                    <span class="btn__icon">➕</span>
+                                    Add Experience
+                                </button>
+                            </div>
+                            
+                            <div class="experience-list" id="experienceList">
+                                <!-- Experience entries will be dynamically added here -->
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="skills">Skills & Technologies</label>
+                                <textarea class="form-input form-input--textarea" id="skills" 
+                                          placeholder="Enter your skills separated by commas (e.g., JavaScript, Python, React, Node.js)"></textarea>
+                                <small class="form-help-text">Separate multiple skills with commas</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="coverLetter">Default Cover Letter Template</label>
+                                <textarea class="form-input form-input--textarea form-input--large" id="coverLetter" 
+                                          placeholder="Enter a default cover letter template that can be customized for each application"></textarea>
+                                <small class="form-help-text">This will be used as a starting point for job applications</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn--primary">Save Profile</button>
+                            <button type="button" class="btn btn--secondary" id="clearProfile">Clear All</button>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Security Tab -->
+                <section class="tab" id="security">
+                    <h2 class="tab__title">Security & Privacy</h2>
+                    
+                    <div class="security-info">
+                        <div class="info-card">
+                            <h3 class="info-card__title">🔒 Data Encryption</h3>
+                            <p class="info-card__text">
+                                Your personal information is encrypted and stored locally on your device. 
+                                No data is sent to external servers.
+                            </p>
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3 class="info-card__title">🏠 Local Storage</h3>
+                            <p class="info-card__text">
+                                All your data stays on your computer. The extension works completely offline 
+                                and never transmits your information over the internet.
+                            </p>
+                        </div>
+                        
+                        <div class="info-card">
+                            <h3 class="info-card__title">⏰ Session Timeout</h3>
+                            <p class="info-card__text">
+                                For added security, auto-fill functionality automatically disables after 
+                                periods of inactivity.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="security-actions">
+                        <button class="btn btn--warning" id="clearAllData">
+                            🗑️ Clear All Data
+                        </button>
+                        <button class="btn btn--secondary" id="exportData">
+                            📁 Export Data
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Portals Tab -->
+                <section class="tab" id="portals">
+                    <h2 class="tab__title">Supported Job Portals</h2>
+                    
+                    <div class="portals-list">
+                        <div class="portal-card">
+                            <div class="portal-card__icon">💼</div>
+                            <div class="portal-card__content">
+                                <h3 class="portal-card__title">LinkedIn</h3>
+                                <p class="portal-card__description">Professional networking platform</p>
+                            </div>
+                            <div class="portal-card__status">
+                                <span class="status-indicator status-indicator--active">Active</span>
+                            </div>
+                        </div>
+                        
+                        <div class="portal-card">
+                            <div class="portal-card__icon">🔍</div>
+                            <div class="portal-card__content">
+                                <h3 class="portal-card__title">Indeed</h3>
+                                <p class="portal-card__description">Job search and recruitment platform</p>
+                            </div>
+                            <div class="portal-card__status">
+                                <span class="status-indicator status-indicator--active">Active</span>
+                            </div>
+                        </div>
+                        
+                        <div class="portal-card">
+                            <div class="portal-card__icon">🏢</div>
+                            <div class="portal-card__content">
+                                <h3 class="portal-card__title">Glassdoor</h3>
+                                <p class="portal-card__description">Company reviews and job listings</p>
+                            </div>
+                            <div class="portal-card__status">
+                                <span class="status-indicator status-indicator--active">Active</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- About Tab -->
+                <section class="tab" id="about">
+                    <h2 class="tab__title">About Auto-Fill Assistant</h2>
+                    
+                    <div class="about-content">
+                        <div class="about-info">
+                            <h3>Version 1.0.0</h3>
+                            <p>Automatically fill job application forms with your stored profile data.</p>
+                        </div>
+                        
+                        <div class="about-features">
+                            <h3>Features</h3>
+                            <ul>
+                                <li>✅ Smart field detection</li>
+                                <li>✅ Secure local storage</li>
+                                <li>✅ Multi-portal support</li>
+                                <li>✅ Privacy-first design</li>
+                                <li>✅ Easy-to-use interface</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="about-links">
+                            <a href="https://github.com/neerajdhurandher/Auto-Fill-Extension" 
+                               target="_blank" class="btn btn--secondary">
+                                📚 Documentation
+                            </a>
+                            <a href="https://github.com/neerajdhurandher/Auto-Fill-Extension/issues" 
+                               target="_blank" class="btn btn--secondary">
+                                🐛 Report Issue
+                            </a>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script src="options.js"></script>
+</body>
+</html>

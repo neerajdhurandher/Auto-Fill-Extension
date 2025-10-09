@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Fill Assistant</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <header class="popup__header">
+        <h1 class="popup__title">Auto-Fill Assistant</h1>
+        <div class="popup__status" id="statusIndicator">
+            <span class="popup__status-dot popup__status-dot--inactive"></span>
+            <span class="popup__status-text">Ready</span>
+        </div>
+    </header>
+
+    <main class="popup__main">
+        <section class="popup__actions">
+            <button class="btn btn--primary" id="fillFormBtn" disabled>
+                <span class="btn__icon">⚡</span>
+                Fill Form
+            </button>
+            <button class="btn btn--secondary" id="detectFieldsBtn">
+                <span class="btn__icon">🔍</span>
+                Detect Fields
+            </button>
+        </section>
+
+        <section class="popup__info" id="formInfo">
+            <div class="info-card info-card--hidden" id="detectionResults">
+                <h3 class="info-card__title">Fields Detected</h3>
+                <div class="info-card__content">
+                    <div class="field-count" id="fieldCount">
+                        <span class="field-count__number">0</span>
+                        <span class="field-count__text">form fields found</span>
+                    </div>
+                    <div class="field-types" id="fieldTypes"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="popup__profile">
+            <div class="profile-status" id="profileStatus">
+                <div class="profile-status__icon">👤</div>
+                <div class="profile-status__content">
+                    <span class="profile-status__text">No profile configured</span>
+                    <button class="profile-status__action" id="setupProfileBtn">
+                        Set up profile
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="popup__footer">
+        <button class="footer-btn" id="settingsBtn" title="Settings">
+            <span class="footer-btn__icon">⚙️</span>
+        </button>
+        <button class="footer-btn" id="helpBtn" title="Help">
+            <span class="footer-btn__icon">❓</span>
+        </button>
+    </footer>
+
+    <script src="popup.js"></script>
+</body>
+</html>

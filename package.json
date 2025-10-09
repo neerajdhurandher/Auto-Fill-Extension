@@ -1,0 +1,33 @@
+{
+  "name": "auto-fill-extension",
+  "version": "1.0.0",
+  "description": "Chrome extension that automatically fills job application forms with stored user data",
+  "main": "manifest.json",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo \"No build process required for this extension\"",
+    "dev": "echo \"Load unpacked extension from this directory in Chrome Developer mode\"",
+    "package": "zip -r auto-fill-extension.zip . -x node_modules/\\* .git/\\* *.zip"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com-personal:neerajdhurandher/Auto-Fill-Extension.git"
+  },
+  "keywords": [
+    "chrome-extension",
+    "autofill",
+    "job-application",
+    "form-filling",
+    "productivity",
+    "privacy"
+  ],
+  "author": "Neeraj Dhurandher",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "fuse.js": "^7.1.0"
+  }
+}

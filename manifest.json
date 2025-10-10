@@ -15,7 +15,10 @@
     "https://www.indeed.com/*",
     "https://www.glassdoor.com/*",
     "https://www.monster.com/*",
-    "https://www.ziprecruiter.com/*"
+    "https://www.ziprecruiter.com/*",
+    "http://127.0.0.1:*/*",
+    "http://localhost:*/*",
+    "file://*/*"
   ],
   
   "background": {
@@ -29,7 +32,10 @@
         "https://www.indeed.com/*",
         "https://www.glassdoor.com/*",
         "https://www.monster.com/*",
-        "https://www.ziprecruiter.com/*"
+        "https://www.ziprecruiter.com/*",
+        "http://127.0.0.1:*/*",
+        "http://localhost:*/*",
+        "file://*/*"
       ],
       "js": [
         "utils/performance.js",

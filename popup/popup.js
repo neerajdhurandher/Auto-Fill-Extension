@@ -4,7 +4,7 @@
  */
 
 // Constants
-const STORAGE_KEYS = {
+const POPUP_STORAGE_KEYS = {
   USER_PROFILE: 'userProfile',
   EXTENSION_SETTINGS: 'extensionSettings',
   LAST_DETECTION: 'lastDetection'
@@ -18,16 +18,44 @@ const MESSAGES = {
 
 // DOM Elements
 let elements = {};
+let storageManager = null;
 
 /**
  * Initialize popup when DOM is loaded
  */
 document.addEventListener('DOMContentLoaded', async () => {
+  await initializeStorageManager();
   initializeElements();
   await loadProfileStatus();
   await checkCurrentPageForm();
   setupEventListeners();
 });
+
+/**
+ * Initialize storage manager
+ */
+async function initializeStorageManager() {
+  try {
+    // Wait for storage manager to be available
+    await new Promise(resolve => {
+      if (window.storageManager) {
+        resolve();
+      } else {
+        setTimeout(resolve, 100);
+      }
+    });
+    
+    storageManager = window.storageManager;
+    if (storageManager) {
+      await storageManager.initialize();
+      console.log('Storage manager initialized in popup');
+    } else {
+      console.warn('Storage manager not available, using direct chrome.storage');
+    }
+  } catch (error) {
+    console.error('Failed to initialize storage manager:', error);
+  }
+}
 
 /**
  * Cache DOM elements for better performance
@@ -65,10 +93,21 @@ function setupEventListeners() {
  */
 async function loadProfileStatus() {
   try {
-    const result = await chrome.storage.local.get(STORAGE_KEYS.USER_PROFILE);
-    const hasProfile = result[STORAGE_KEYS.USER_PROFILE] && 
-                      result[STORAGE_KEYS.USER_PROFILE].personal &&
-                      result[STORAGE_KEYS.USER_PROFILE].personal.name;
+    let profileData = null;
+    
+    // Try to use storage manager for encrypted data
+    if (storageManager) {
+      profileData = await storageManager.getUserProfile();
+    } else {
+      // Fallback to direct chrome storage
+      const result = await chrome.storage.local.get(POPUP_STORAGE_KEYS.USER_PROFILE);
+      profileData = result[POPUP_STORAGE_KEYS.USER_PROFILE];
+    }
+    
+    const hasProfile = profileData && 
+                      profileData.personal &&
+                      (profileData.personal.firstName ||
+                       profileData.personal.email);
 
     updateProfileDisplay(hasProfile);
   } catch (error) {
@@ -114,10 +153,10 @@ async function checkCurrentPageForm() {
     updateStatusDisplay('active', 'Job portal detected');
     
     // Try to get cached detection results
-    const result = await chrome.storage.local.get(STORAGE_KEYS.LAST_DETECTION);
-    if (result[STORAGE_KEYS.LAST_DETECTION] && 
-        result[STORAGE_KEYS.LAST_DETECTION].url === tab.url) {
-      displayDetectionResults(result[STORAGE_KEYS.LAST_DETECTION]);
+    const result = await chrome.storage.local.get(POPUP_STORAGE_KEYS.LAST_DETECTION);
+    if (result[POPUP_STORAGE_KEYS.LAST_DETECTION] && 
+        result[POPUP_STORAGE_KEYS.LAST_DETECTION].url === tab.url) {
+      displayDetectionResults(result[POPUP_STORAGE_KEYS.LAST_DETECTION]);
     }
   } catch (error) {
     console.error('Error checking current page:', error);
@@ -136,10 +175,51 @@ function isJobPortal(url) {
     'indeed.com',
     'glassdoor.com',
     'monster.com',
-    'ziprecruiter.com'
+    'ziprecruiter.com',
+    '127.0.0.1',
+    'localhost'
   ];
   
   return jobPortals.some(portal => url.includes(portal));
+}
+
+/**
+ * Ensure content script is injected in the tab
+ * @param {number} tabId - Tab ID to inject script into
+ */
+async function ensureContentScriptInjected(tabId) {
+  try {
+    // Try to ping the content script first
+    try {
+      await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+      // If this succeeds, content script is already loaded
+      return;
+    } catch (pingError) {
+      // Content script not loaded, need to inject it
+      console.log('Content script not loaded, injecting...');
+    }
+    
+    // Inject the content scripts manually
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: [
+        'content/detector.js'
+      ]
+    });
+      //  'utils/performance.js',
+      //   'utils/advancedDetector.js', 
+      //   'utils/autoFillEngine.js',
+      //   'content/enhancedDetector.js'
+    
+    console.log('Content scripts injected successfully');
+    
+    // Wait for initialization
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+  } catch (error) {
+    console.error('Failed to inject content script:', error);
+    throw new Error('Cannot inject content script on this page');
+  }
 }
 
 /**
@@ -162,6 +242,28 @@ async function handleDetectFields() {
     
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
+    if (!tab) {
+      throw new Error('No active tab found');
+    }
+    
+    // Check if tab URL is supported
+    if (!isJobPortal(tab.url)) {
+      updateStatusDisplay('inactive', 'Not a supported job portal');
+      return;
+    }
+    
+    // Try to inject content script if not already present
+    try {
+      await ensureContentScriptInjected(tab.id);
+    } catch (injectionError) {
+      console.error('Content script injection failed:', injectionError);
+      updateStatusDisplay('inactive', 'Failed to load on this page');
+      return;
+    }
+    
+    // Wait a moment for content script to initialize
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     // Send message to content script to detect fields
     const response = await chrome.tabs.sendMessage(tab.id, {
       action: MESSAGES.DETECT_FIELDS
@@ -173,8 +275,15 @@ async function handleDetectFields() {
       updateStatusDisplay('active', 'Fields detected');
       
       // Enable fill button if profile exists
-      const profileResult = await chrome.storage.local.get(STORAGE_KEYS.USER_PROFILE);
-      if (profileResult[STORAGE_KEYS.USER_PROFILE]) {
+      let profileData = null;
+      if (storageManager) {
+        profileData = await storageManager.getUserProfile();
+      } else {
+        const profileResult = await chrome.storage.local.get(POPUP_STORAGE_KEYS.USER_PROFILE);
+        profileData = profileResult[POPUP_STORAGE_KEYS.USER_PROFILE];
+      }
+      
+      if (profileData) {
         elements.fillFormBtn.disabled = false;
       }
     } else {
@@ -183,7 +292,15 @@ async function handleDetectFields() {
     }
   } catch (error) {
     console.error('Error detecting fields:', error);
-    updateStatusDisplay('inactive', 'Detection failed');
+    
+    if (error.message.includes('Could not establish connection')) {
+      updateStatusDisplay('inactive', 'Content script not loaded');
+    } else if (error.message.includes('Cannot access')) {
+      updateStatusDisplay('inactive', 'Cannot access this page');
+    } else {
+      updateStatusDisplay('inactive', 'Detection failed');
+    }
+    
     hideDetectionResults();
   } finally {
     elements.detectFieldsBtn.disabled = false;
@@ -200,17 +317,44 @@ async function handleFillForm() {
     
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
-    // Get user profile data
-    const profileResult = await chrome.storage.local.get(STORAGE_KEYS.USER_PROFILE);
-    if (!profileResult[STORAGE_KEYS.USER_PROFILE]) {
+    if (!tab) {
+      throw new Error('No active tab found');
+    }
+    
+    // Get user profile data (decrypt if needed)
+    let profileData = null;
+    
+    if (storageManager) {
+      // Use storage manager to get decrypted profile data
+      console.log('Using storage manager to fetch and decrypt profile data');
+      profileData = await storageManager.getUserProfile();
+    } else {
+      // Fallback to direct chrome storage (unencrypted)
+      console.log('Using direct chrome storage (fallback)');
+      const profileResult = await chrome.storage.local.get(POPUP_STORAGE_KEYS.USER_PROFILE);
+      profileData = profileResult[POPUP_STORAGE_KEYS.USER_PROFILE];
+    }
+    
+    console.log('Profile data retrieved:', profileData ? 'Found' : 'Not found');
+    
+    if (!profileData) {
       updateStatusDisplay('inactive', 'No profile found');
+      return;
+    }
+    
+    // Ensure content script is available
+    try {
+      await ensureContentScriptInjected(tab.id);
+    } catch (injectionError) {
+      console.error('Content script injection failed:', injectionError);
+      updateStatusDisplay('inactive', 'Failed to load on this page');
       return;
     }
     
     // Send message to content script to fill form
     const response = await chrome.tabs.sendMessage(tab.id, {
       action: MESSAGES.FILL_FORM,
-      profileData: profileResult[STORAGE_KEYS.USER_PROFILE]
+      profileData: profileData  // Now using decrypted data
     });
     
     if (response && response.success) {
@@ -220,7 +364,14 @@ async function handleFillForm() {
     }
   } catch (error) {
     console.error('Error filling form:', error);
-    updateStatusDisplay('inactive', 'Fill error');
+    
+    if (error.message.includes('Could not establish connection')) {
+      updateStatusDisplay('inactive', 'Content script not loaded');
+    } else if (error.message.includes('Cannot access')) {
+      updateStatusDisplay('inactive', 'Cannot access this page');
+    } else {
+      updateStatusDisplay('inactive', 'Fill error');
+    }
   } finally {
     elements.fillFormBtn.disabled = false;
   }
@@ -234,7 +385,7 @@ async function handleFillForm() {
 async function saveDetectionResults(url, fields) {
   try {
     await chrome.storage.local.set({
-      [STORAGE_KEYS.LAST_DETECTION]: {
+      [POPUP_STORAGE_KEYS.LAST_DETECTION]: {
         url,
         fields,
         timestamp: Date.now()

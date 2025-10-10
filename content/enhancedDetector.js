@@ -10,28 +10,48 @@ let isInitialized = false;
 let advancedDetector = null;
 let autoFillEngine = null;
 let isAdvancedMode = true;
+let debugMode = true; // Enable debug logging
+
+// Debug logging function
+function debugLog(message, ...args) {
+  if (debugMode) {
+    console.log('Auto-Fill Debug:', message, ...args);
+  }
+}
 
 // Import utilities
 async function loadUtilities() {
   try {
+    // Wait a bit for scripts to load
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Load advanced detector
     if (typeof window.advancedFieldDetector !== 'undefined') {
       advancedDetector = window.advancedFieldDetector;
+      console.log('Auto-Fill: Advanced detector loaded');
+    } else {
+      console.warn('Auto-Fill: Advanced detector not available');
     }
     
     // Load auto-fill engine
     if (typeof window.autoFillEngine !== 'undefined') {
       autoFillEngine = window.autoFillEngine;
+      console.log('Auto-Fill: Auto-fill engine loaded');
+    } else {
+      console.warn('Auto-Fill: Auto-fill engine not available');
     }
     
     if (advancedDetector && autoFillEngine) {
       await advancedDetector.initialize();
       await autoFillEngine.initialize();
       isAdvancedMode = true;
-      console.log('Advanced utilities loaded successfully');
+      console.log('Auto-Fill: Advanced utilities initialized successfully');
+    } else {
+      console.log('Auto-Fill: Running in basic mode - advanced utilities not available');
+      isAdvancedMode = false;
     }
   } catch (error) {
-    console.error('Failed to load advanced utilities:', error);
+    console.error('Auto-Fill: Failed to load advanced utilities:', error);
     isAdvancedMode = false;
   }
 }
@@ -158,32 +178,52 @@ const FIELD_PATTERNS = {
  * Initialize the enhanced content script
  */
 async function initializeContentScript() {
-  if (isInitialized) return;
+  if (isInitialized) {
+    debugLog('Already initialized, skipping...');
+    return;
+  }
   
-  console.log('Auto-Fill: Initializing enhanced content script...');
+  debugLog('Initializing enhanced content script...');
   
   try {
     // Load utilities first
+    debugLog('Loading utilities...');
     await loadUtilities();
     
     // Identify portal
     portalConfig = identifyJobPortal();
-    console.log('Auto-Fill: Portal identified:', portalConfig ? portalConfig.name : 'generic');
+    debugLog('Portal identified:', portalConfig ? portalConfig.name : 'generic');
     
     // Initial field detection
+    debugLog('Starting initial field detection...');
     await detectFormFields();
     
     // Set up message listener
-    chrome.runtime.onMessage.addListener(handleMessage);
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      handleMessage(request, sender, sendResponse);
+      return true; // Required for async response
+    });
     
     // Set up mutation observer for dynamic content
     setupMutationObserver();
     
     isInitialized = true;
     console.log('Auto-Fill: Enhanced content script initialized successfully');
+    debugLog('Initialization complete. Detected fields:', detectedFields.length);
+    
+    // Notify test page that extension is ready
+    window.autoFillExtensionActive = true;
+    document.dispatchEvent(new CustomEvent('autoFillExtensionReady', {
+      detail: { 
+        fieldsDetected: detectedFields.length,
+        portal: portalConfig?.name || 'generic',
+        advancedMode: isAdvancedMode
+      }
+    }));
     
   } catch (error) {
     console.error('Auto-Fill: Failed to initialize content script:', error);
+    debugLog('Initialization failed:', error);
   }
 }
 
@@ -192,40 +232,62 @@ async function initializeContentScript() {
  */
 async function detectFormFields() {
   try {
+    debugLog('Starting field detection...');
     const formElements = getFormElements();
-    console.log(`Auto-Fill: Found ${formElements.length} form elements`);
+    debugLog(`Found ${formElements.length} form elements`);
     
     if (formElements.length === 0) {
       detectedFields = [];
+      debugLog('No form elements found, clearing detected fields');
       return;
     }
 
     // Use advanced detection if available
     if (isAdvancedMode && advancedDetector) {
+      debugLog('Using advanced detection mode');
       detectedFields = await detectFieldsAdvanced(formElements);
     } else {
+      debugLog('Using basic detection mode');
       detectedFields = await detectFieldsBasic(formElements);
     }
     
     console.log(`Auto-Fill: Detected ${detectedFields.length} mappable fields`);
+    debugLog('Detected fields:', detectedFields.map(f => ({ category: f.category, confidence: f.confidence })));
     
-    // Notify background script
-    chrome.runtime.sendMessage({
-      type: 'FIELDS_DETECTED',
-      data: {
-        url: window.location.href,
-        portal: portalConfig?.name || 'unknown',
-        fieldCount: detectedFields.length,
-        fields: detectedFields.map(field => ({
-          category: field.category,
-          confidence: field.confidence,
-          element: field.element?.tagName + (field.element?.type ? `[${field.element.type}]` : '')
-        }))
+    // Notify test page about field detection
+    document.dispatchEvent(new CustomEvent('autoFillFieldsDetected', {
+      detail: { 
+        count: detectedFields.length,
+        portal: portalConfig?.name || 'generic',
+        fields: detectedFields.map(f => f.category)
       }
-    });
+    }));
+    
+    // Notify background script (optional)
+    try {
+      chrome.runtime.sendMessage({
+        type: 'FIELDS_DETECTED',
+        data: {
+          url: window.location.href,
+          portal: portalConfig?.name || 'unknown',
+          fieldCount: detectedFields.length,
+          fields: detectedFields.map(field => ({
+            category: field.category,
+            confidence: field.confidence,
+            element: field.element?.tagName + (field.element?.type ? `[${field.element.type}]` : '')
+          }))
+        }
+      }).catch(error => {
+        console.warn('Auto-Fill: Failed to notify background script:', error);
+      });
+    } catch (error) {
+      console.warn('Auto-Fill: Background message failed:', error);
+    }
     
   } catch (error) {
     console.error('Auto-Fill: Field detection failed:', error);
+    debugLog('Field detection error:', error);
+    detectedFields = []; // Ensure we have a fallback
   }
 }
 
@@ -237,30 +299,36 @@ async function detectFormFields() {
 async function detectFieldsAdvanced(formElements) {
   const detectedFields = [];
   
-  for (const element of formElements) {
-    try {
-      const fieldData = await advancedDetector.detectField(element);
-      
-      if (fieldData && fieldData.confidence > 0.6) {
-        detectedFields.push(fieldData);
-      }
-    } catch (error) {
-      console.error('Advanced detection failed for element:', error);
-      // Fallback to basic detection
-      const basicResult = detectFieldBasic(element);
-      if (basicResult) {
-        detectedFields.push(basicResult);
+  try {
+    for (const element of formElements) {
+      try {
+        const fieldData = await advancedDetector.detectField(element);
+        
+        if (fieldData && fieldData.confidence > 0.6) {
+          detectedFields.push(fieldData);
+        }
+      } catch (error) {
+        console.error('Advanced detection failed for element:', error);
+        // Fallback to basic detection for this element
+        const basicResult = detectFieldBasic(element);
+        if (basicResult) {
+          detectedFields.push(basicResult);
+        }
       }
     }
+    
+    // Sort by confidence and priority
+    return detectedFields.sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return b.priority - a.priority;
+      }
+      return b.confidence - a.confidence;
+    });
+  } catch (error) {
+    console.error('Advanced field detection failed:', error);
+    // Fallback to basic detection
+    return await detectFieldsBasic(formElements);
   }
-  
-  // Sort by confidence and priority
-  return detectedFields.sort((a, b) => {
-    if (a.priority !== b.priority) {
-      return b.priority - a.priority;
-    }
-    return b.confidence - a.confidence;
-  });
 }
 
 /**
@@ -271,14 +339,23 @@ async function detectFieldsAdvanced(formElements) {
 async function detectFieldsBasic(formElements) {
   const detectedFields = [];
   
-  for (const element of formElements) {
-    const fieldData = detectFieldBasic(element);
-    if (fieldData) {
-      detectedFields.push(fieldData);
+  try {
+    for (const element of formElements) {
+      try {
+        const fieldData = detectFieldBasic(element);
+        if (fieldData) {
+          detectedFields.push(fieldData);
+        }
+      } catch (error) {
+        console.warn('Basic detection failed for element:', error);
+      }
     }
+    
+    return detectedFields.sort((a, b) => b.priority - a.priority);
+  } catch (error) {
+    console.error('Basic field detection failed:', error);
+    return []; // Return empty array on failure
   }
-  
-  return detectedFields.sort((a, b) => b.priority - a.priority);
 }
 
 /**
@@ -350,31 +427,54 @@ function calculateFieldScore(attributes, pattern) {
  * @returns {Array} Form elements
  */
 function getFormElements() {
-  const selectors = [
-    'input[type="text"]',
-    'input[type="email"]',
-    'input[type="tel"]',
-    'input[type="url"]',
-    'input[type="search"]',
-    'input:not([type])',
-    'textarea',
-    'select'
-  ];
-  
-  const elements = [];
-  
-  for (const selector of selectors) {
-    const found = document.querySelectorAll(selector);
-    elements.push(...Array.from(found));
+  try {
+    const selectors = [
+      'input[type="text"]',
+      'input[type="email"]',
+      'input[type="tel"]',
+      'input[type="url"]',
+      'input[type="search"]',
+      'input:not([type])',
+      'textarea',
+      'select'
+    ];
+    
+    const elements = [];
+    
+    for (const selector of selectors) {
+      try {
+        const found = document.querySelectorAll(selector);
+        elements.push(...Array.from(found));
+        debugLog(`Found ${found.length} elements with selector: ${selector}`);
+      } catch (error) {
+        debugLog(`Error with selector ${selector}:`, error);
+      }
+    }
+    
+    // Filter out hidden/disabled elements
+    const visibleElements = elements.filter(element => {
+      try {
+        const isVisible = element.offsetParent !== null && 
+                         !element.disabled && 
+                         !element.readOnly &&
+                         element.type !== 'hidden' &&
+                         !element.style.display?.includes('none') &&
+                         !element.style.visibility?.includes('hidden');
+        return isVisible;
+      } catch (error) {
+        debugLog('Error checking element visibility:', error);
+        return false;
+      }
+    });
+    
+    debugLog(`Total elements found: ${elements.length}, Visible: ${visibleElements.length}`);
+    return visibleElements;
+    
+  } catch (error) {
+    console.error('Error getting form elements:', error);
+    debugLog('getFormElements error:', error);
+    return [];
   }
-  
-  // Filter out hidden/disabled elements
-  return elements.filter(element => {
-    return element.offsetParent !== null && 
-           !element.disabled && 
-           !element.readOnly &&
-           element.type !== 'hidden';
-  });
 }
 
 /**
@@ -411,12 +511,30 @@ function getElementAttributes(element) {
  * @param {Function} sendResponse - Response function
  */
 async function handleMessage(request, sender, sendResponse) {
-  console.log('Auto-Fill: Received message:', request.type);
+  const messageType = request.action || request.type;
+  debugLog('Received message:', messageType, request);
   
   try {
-    switch (request.type) {
+    // Handle both action and type properties for compatibility
+    
+    switch (messageType) {
+      case 'ping':
+        // Simple ping response to check if content script is active
+        sendResponse({ success: true, status: 'ready' });
+        return;
+        
+      case 'detectFields':
       case 'GET_FIELDS':
-        sendResponse({
+        debugLog('Processing field detection request...');
+        debugLog('Current detected fields:', detectedFields.length);
+        
+        // If no fields detected yet, try detection now
+        if (detectedFields.length === 0) {
+          debugLog('No fields cached, running detection now...');
+          await detectFormFields();
+        }
+        
+        const fieldResponse = {
           success: true,
           fields: detectedFields.map(field => ({
             category: field.category,
@@ -424,15 +542,22 @@ async function handleMessage(request, sender, sendResponse) {
             method: field.method || 'basic',
             priority: field.priority
           }))
-        });
+        };
+        
+        debugLog('Sending field response:', fieldResponse);
+        sendResponse(fieldResponse);
         break;
         
+      case 'fillForm':
       case 'FILL_FIELDS':
-        const result = await fillFormFields(request.data);
+        debugLog('Processing fill form request...');
+        const result = await fillFormFields(request.profileData || request.data);
+        debugLog('Fill result:', result);
         sendResponse(result);
         break;
         
       case 'START_SMART_FILL':
+        debugLog('Processing smart fill request...');
         if (isAdvancedMode && autoFillEngine) {
           const smartResult = await autoFillEngine.startAutoFill(detectedFields, request.data.profileData);
           sendResponse({ success: true, result: smartResult });
@@ -453,15 +578,18 @@ async function handleMessage(request, sender, sendResponse) {
         break;
         
       case 'REFRESH_DETECTION':
+        debugLog('Refreshing field detection...');
         await detectFormFields();
         sendResponse({ success: true, fieldCount: detectedFields.length });
         break;
         
       default:
-        sendResponse({ success: false, error: 'Unknown message type' });
+        console.warn('Auto-Fill: Unknown message type:', messageType);
+        sendResponse({ success: false, error: 'Unknown message type: ' + messageType });
     }
   } catch (error) {
     console.error('Auto-Fill: Message handling error:', error);
+    debugLog('Message handling error:', error);
     sendResponse({ success: false, error: error.message });
   }
 }
@@ -512,25 +640,59 @@ async function fillFormFields(profileData) {
  * @returns {string|null} Field value
  */
 function getFieldValue(category, profileData) {
-  const mapping = {
-    firstName: profileData.personal?.firstName,
-    lastName: profileData.personal?.lastName,
-    fullName: `${profileData.personal?.firstName || ''} ${profileData.personal?.lastName || ''}`.trim(),
-    email: profileData.personal?.email,
-    phoneNumber: profileData.personal?.phone?.full,
-    phoneCountryCode: profileData.personal?.phone?.countryCode,
-    addressLine1: profileData.personal?.address?.line1,
-    addressLine2: profileData.personal?.address?.line2,
-    city: profileData.personal?.address?.city,
-    postalCode: profileData.personal?.address?.postalCode,
-    country: profileData.personal?.address?.country,
-    jobTitle: profileData.professional?.experiences?.[0]?.title,
-    company: profileData.professional?.experiences?.[0]?.company,
-    jobDescription: profileData.professional?.experiences?.[0]?.description,
-    skills: profileData.professional?.skills?.join(', ')
-  };
-  
-  return mapping[category] || null;
+  // Handle name fields with proper logic
+  switch (category) {
+    case 'firstName':
+      return profileData.personal?.firstName || null;
+      
+    case 'lastName':
+      return profileData.personal?.lastName || null;
+      
+    case 'fullName':
+      // Only combine names if both exist, otherwise return single name
+      const firstName = profileData.personal?.firstName || '';
+      const lastName = profileData.personal?.lastName || '';
+      return `${firstName} ${lastName}`.trim() || null;
+      
+    case 'email':
+      return profileData.personal?.email || null;
+      
+    case 'phoneNumber':
+      return profileData.personal?.phone?.full || null;
+      
+    case 'phoneCountryCode':
+      return profileData.personal?.phone?.countryCode || null;
+      
+    case 'addressLine1':
+      return profileData.personal?.address?.line1 || null;
+      
+    case 'addressLine2':
+      return profileData.personal?.address?.line2 || null;
+      
+    case 'city':
+      return profileData.personal?.address?.city || null;
+      
+    case 'postalCode':
+      return profileData.personal?.address?.postalCode || null;
+      
+    case 'country':
+      return profileData.personal?.address?.country || null;
+      
+    case 'jobTitle':
+      return profileData.professional?.experiences?.[0]?.title || null;
+      
+    case 'company':
+      return profileData.professional?.experiences?.[0]?.company || null;
+      
+    case 'jobDescription':
+      return profileData.professional?.experiences?.[0]?.description || null;
+      
+    case 'skills':
+      return profileData.professional?.skills?.join(', ') || null;
+      
+    default:
+      return null;
+  }
 }
 
 /**
@@ -600,6 +762,7 @@ function selectOption(selectElement, value) {
  */
 function identifyJobPortal() {
   const hostname = window.location.hostname.toLowerCase();
+  const fullUrl = window.location.href.toLowerCase();
   
   const portals = {
     'linkedin.com': { name: 'LinkedIn', type: 'professional' },
@@ -608,8 +771,17 @@ function identifyJobPortal() {
     'monster.com': { name: 'Monster', type: 'job_board' },
     'ziprecruiter.com': { name: 'ZipRecruiter', type: 'job_board' },
     'careerbuilder.com': { name: 'CareerBuilder', type: 'job_board' },
-    'jobs.com': { name: 'Jobs.com', type: 'job_board' }
+    'jobs.com': { name: 'Jobs.com', type: 'job_board' },
+    '127.0.0.1': { name: 'Test Portal', type: 'test_portal' },
+    'localhost': { name: 'Test Portal', type: 'test_portal' }
   };
+  
+  // Check for test portal specifically
+  if (fullUrl.includes('job-portal-test.html') || 
+      hostname === '127.0.0.1' || 
+      hostname === 'localhost') {
+    return { name: 'Test Portal', type: 'test_portal' };
+  }
   
   for (const [domain, config] of Object.entries(portals)) {
     if (hostname.includes(domain)) {
@@ -656,7 +828,10 @@ function setupMutationObserver() {
 
 // Initialize when page loads
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeContentScript);
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initializeContentScript, 100); // Small delay to ensure all scripts are loaded
+  });
 } else {
-  initializeContentScript();
+  // DOM already loaded
+  setTimeout(initializeContentScript, 100);
 }

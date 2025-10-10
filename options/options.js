@@ -90,20 +90,13 @@ function setupEventListeners() {
  */
 async function initializeStorageManager() {
   try {
-    // Import storage utilities
-    const script = document.createElement('script');
-    script.src = '../utils/storage.js';
-    document.head.appendChild(script);
-    
-    await new Promise(resolve => {
-      script.onload = resolve;
-    });
-    
-    // Initialize storage manager
+    // Storage manager should now be available from the static script
     if (window.storageManager) {
       storageManager = window.storageManager;
       await storageManager.initialize();
       console.log('Storage manager initialized successfully');
+    } else {
+      throw new Error('Storage manager not available');
     }
   } catch (error) {
     console.error('Failed to initialize storage manager:', error);
@@ -245,6 +238,7 @@ async function saveProfileData() {
       phone: {
         countryCode: elements.phoneCountryCode.value,
         number: elements.phoneNumber.value.trim(),
+        full: `${elements.phoneCountryCode.value} ${elements.phoneNumber.value.trim()}`.trim(),
         type: elements.phoneType.value
       },
       address: {
@@ -256,7 +250,7 @@ async function saveProfileData() {
       }
     },
     professional: {
-      experience: collectExperienceData(),
+      experiences: collectExperienceData(),
       skills: elements.skills.value.split(',').map(s => s.trim()).filter(s => s),
       coverLetter: elements.coverLetter.value.trim()
     },

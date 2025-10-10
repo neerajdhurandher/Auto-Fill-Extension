@@ -19,6 +19,7 @@ const ENCRYPTION_CONFIG = {
   ivLength: 12
 };
 
+
 /**
  * Storage Manager Class
  * Provides encrypted storage for sensitive data and plain storage for settings
@@ -39,7 +40,8 @@ class StorageManager {
       console.log('Storage manager initialized');
     } catch (error) {
       console.error('Failed to initialize storage manager:', error);
-      throw error;
+      // Don't throw error, allow fallback to unencrypted storage
+      this.isInitialized = false;
     }
   }
 
@@ -48,6 +50,12 @@ class StorageManager {
    */
   async generateOrLoadEncryptionKey() {
     try {
+      // Check if Web Crypto API is available
+      if (!crypto || !crypto.subtle) {
+        console.warn('Web Crypto API not available, using unencrypted storage');
+        return;
+      }
+
       // Try to load existing key
       const result = await chrome.storage.local.get('encryptionKey');
       
@@ -79,7 +87,7 @@ class StorageManager {
       }
     } catch (error) {
       console.error('Error with encryption key:', error);
-      throw error;
+      this.encryptionKey = null;
     }
   }
 
@@ -89,8 +97,8 @@ class StorageManager {
    * @returns {Object} Encrypted data with IV
    */
   async encryptData(data) {
-    if (!this.isInitialized) {
-      await this.initialize();
+    if (!this.encryptionKey) {
+      throw new Error('Encryption not available');
     }
 
     try {
@@ -126,8 +134,8 @@ class StorageManager {
    * @returns {string} Decrypted data
    */
   async decryptData(encryptedData) {
-    if (!this.isInitialized) {
-      await this.initialize();
+    if (!this.encryptionKey) {
+      throw new Error('Decryption not available');
     }
 
     try {
@@ -156,16 +164,31 @@ class StorageManager {
   }
 
   /**
-   * Store user profile data (encrypted)
+   * Store user profile data (encrypt if possible)
    * @param {Object} profileData - User profile data
    */
   async setUserProfile(profileData) {
     try {
-      const encryptedData = await this.encryptData(JSON.stringify(profileData));
+      // Try to encrypt the data if encryption is available
+      if (this.encryptionKey) {
+        try {
+          const encryptedData = await this.encryptData(JSON.stringify(profileData));
+          await chrome.storage.local.set({
+            [STORAGE_KEYS.USER_PROFILE]: encryptedData
+          });
+          console.log('User profile saved securely (encrypted)');
+          return;
+        } catch (encryptionError) {
+          console.warn('Encryption failed, falling back to plain text:', encryptionError);
+        }
+      }
+      
+      // Fallback to plain text storage
       await chrome.storage.local.set({
-        [STORAGE_KEYS.USER_PROFILE]: encryptedData
+        [STORAGE_KEYS.USER_PROFILE]: profileData
       });
-      console.log('User profile saved securely');
+      console.log('User profile saved (plain text)');
+      
     } catch (error) {
       console.error('Failed to save user profile:', error);
       throw error;
@@ -173,7 +196,7 @@ class StorageManager {
   }
 
   /**
-   * Retrieve user profile data (decrypt)
+   * Retrieve user profile data (decrypt if needed)
    * @returns {Object|null} User profile data or null if not found
    */
   async getUserProfile() {
@@ -183,9 +206,41 @@ class StorageManager {
       if (!result[STORAGE_KEYS.USER_PROFILE]) {
         return null;
       }
+
+      const storedData = result[STORAGE_KEYS.USER_PROFILE];
       
-      const decryptedData = await this.decryptData(result[STORAGE_KEYS.USER_PROFILE]);
-      return JSON.parse(decryptedData);
+      // Check if data is already in plain object format (legacy data or fallback)
+      if (typeof storedData === 'object' && storedData.personal && !storedData.encrypted) {
+        console.log('Loading plain text profile data');
+        return storedData;
+      }
+      
+      // Check if data is a plain JSON string (legacy data)
+      if (typeof storedData === 'string') {
+        console.log('Loading legacy JSON string profile data');
+        try {
+          return JSON.parse(storedData);
+        } catch (parseError) {
+          console.error('Failed to parse legacy JSON data:', parseError);
+          return null;
+        }
+      }
+      
+      // Try to decrypt (new encrypted format)
+      if (storedData.encrypted && storedData.iv) {
+        try {
+          const decryptedData = await this.decryptData(storedData);
+          return JSON.parse(decryptedData);
+        } catch (decryptError) {
+          console.error('Failed to decrypt profile data:', decryptError);
+          // If decryption fails, return null so user can re-enter their data
+          return null;
+        }
+      }
+      
+      console.warn('Unknown profile data format:', storedData);
+      return null;
+      
     } catch (error) {
       console.error('Failed to retrieve user profile:', error);
       return null;
@@ -196,7 +251,7 @@ class StorageManager {
    * Store extension settings (plain text)
    * @param {Object} settings - Extension settings
    */
-  async setSettings(settings) {
+  async setExtensionSettings(settings) {
     try {
       await chrome.storage.local.set({
         [STORAGE_KEYS.EXTENSION_SETTINGS]: settings
@@ -212,7 +267,7 @@ class StorageManager {
    * Retrieve extension settings
    * @returns {Object|null} Extension settings or null if not found
    */
-  async getSettings() {
+  async getExtensionSettings() {
     try {
       const result = await chrome.storage.local.get(STORAGE_KEYS.EXTENSION_SETTINGS);
       return result[STORAGE_KEYS.EXTENSION_SETTINGS] || null;
@@ -255,113 +310,12 @@ class StorageManager {
   }
 
   /**
-   * Store portal-specific configurations
-   * @param {Object} portalConfigs - Portal configurations
-   */
-  async setPortalConfigs(portalConfigs) {
-    try {
-      await chrome.storage.local.set({
-        [STORAGE_KEYS.PORTAL_CONFIGS]: portalConfigs
-      });
-    } catch (error) {
-      console.error('Failed to save portal configs:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Retrieve portal configurations
-   * @returns {Object|null} Portal configurations or null if not found
-   */
-  async getPortalConfigs() {
-    try {
-      const result = await chrome.storage.local.get(STORAGE_KEYS.PORTAL_CONFIGS);
-      return result[STORAGE_KEYS.PORTAL_CONFIGS] || this.getDefaultPortalConfigs();
-    } catch (error) {
-      console.error('Failed to retrieve portal configs:', error);
-      return this.getDefaultPortalConfigs();
-    }
-  }
-
-  /**
-   * Get default portal configurations
-   * @returns {Object} Default portal configurations
-   */
-  getDefaultPortalConfigs() {
-    return {
-      linkedin: {
-        selectors: {
-          firstName: ['input[name*="firstName"]', 'input[name*="first-name"]', 'input[id*="firstName"]'],
-          lastName: ['input[name*="lastName"]', 'input[name*="last-name"]', 'input[id*="lastName"]'],
-          fullName: ['input[name*="name"]:not([name*="first"]):not([name*="last"])', 'input[id*="fullName"]'],
-          email: ['input[name*="email"]', 'input[type="email"]'],
-          phone: ['input[name*="phone"]', 'input[type="tel"]'],
-          address: ['input[name*="address"]', 'textarea[name*="address"]'],
-          city: ['input[name*="city"]'],
-          country: ['select[name*="country"]', 'input[name*="country"]'],
-          postalCode: ['input[name*="postal"]', 'input[name*="zip"]'],
-          jobTitle: ['input[name*="title"]', 'input[name*="position"]'],
-          company: ['input[name*="company"]', 'input[name*="employer"]'],
-          experience: ['textarea[name*="experience"]', 'textarea[id*="experience"]'],
-          skills: ['textarea[name*="skills"]', 'input[name*="skills"]']
-        },
-        priority: 1,
-        domain: 'linkedin.com'
-      },
-      indeed: {
-        selectors: {
-          fullName: ['input[name="applicant.name"]'],
-          firstName: ['input[name*="firstName"]', 'input[name*="first"]'],
-          lastName: ['input[name*="lastName"]', 'input[name*="last"]'],
-          email: ['input[name="applicant.emailAddress"]', 'input[type="email"]'],
-          phone: ['input[name="applicant.phoneNumber"]', 'input[type="tel"]'],
-          address: ['input[name*="address"]', 'textarea[name*="address"]'],
-          city: ['input[name*="city"]'],
-          country: ['select[name*="country"]'],
-          postalCode: ['input[name*="postal"]', 'input[name*="zip"]'],
-          resume: ['input[type="file"]'],
-          coverLetter: ['textarea[name*="coverLetter"]']
-        },
-        priority: 2,
-        domain: 'indeed.com'
-      },
-      glassdoor: {
-        selectors: {
-          fullName: ['input[name*="name"]', 'input[placeholder*="name"]'],
-          firstName: ['input[name*="firstName"]', 'input[placeholder*="first"]'],
-          lastName: ['input[name*="lastName"]', 'input[placeholder*="last"]'],
-          email: ['input[name*="email"]', 'input[type="email"]'],
-          phone: ['input[name*="phone"]', 'input[type="tel"]'],
-          address: ['input[name*="address"]'],
-          city: ['input[name*="city"]'],
-          country: ['select[name*="country"]'],
-          location: ['input[name*="location"]', 'input[placeholder*="location"]']
-        },
-        priority: 3,
-        domain: 'glassdoor.com'
-      }
-    };
-  }
-
-  /**
-   * Clear all stored data (except encryption key)
+   * Clear all stored data
    */
   async clearAllData() {
     try {
-      // Get encryption key before clearing
-      const keyResult = await chrome.storage.local.get('encryptionKey');
-      
-      // Clear all data
       await chrome.storage.local.clear();
-      
-      // Restore encryption key
-      if (keyResult.encryptionKey) {
-        await chrome.storage.local.set({
-          encryptionKey: keyResult.encryptionKey
-        });
-      }
-      
-      console.log('All data cleared successfully');
+      console.log('All data cleared');
     } catch (error) {
       console.error('Failed to clear data:', error);
       throw error;
@@ -370,18 +324,13 @@ class StorageManager {
 
   /**
    * Get storage usage information
-   * @returns {Object} Storage usage details
+   * @returns {Object} Storage usage statistics
    */
   async getStorageInfo() {
     try {
       const result = await chrome.storage.local.get(null);
-      const keys = Object.keys(result);
-      const totalSize = JSON.stringify(result).length;
-      
       return {
-        totalKeys: keys.length,
-        totalSize: totalSize,
-        keys: keys,
+        totalItems: Object.keys(result).length,
         hasProfile: !!result[STORAGE_KEYS.USER_PROFILE],
         hasSettings: !!result[STORAGE_KEYS.EXTENSION_SETTINGS]
       };
@@ -392,15 +341,15 @@ class StorageManager {
   }
 }
 
-// Create global storage manager instance
-const storageManager = new StorageManager();
-
-// Export for use in other scripts
-if (typeof window !== 'undefined') {
+// Create global storage manager instance (only if not already exists)
+if (typeof window !== 'undefined' && !window.storageManager) {
+  const storageManager = new StorageManager();
   window.storageManager = storageManager;
+} else if (typeof window === 'undefined' && typeof storageManager === 'undefined') {
+  const storageManager = new StorageManager();
 }
 
 // Export for module usage
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { StorageManager, storageManager, STORAGE_KEYS };
+  module.exports = { StorageManager, storageManager: window?.storageManager, STORAGE_KEYS };
 }

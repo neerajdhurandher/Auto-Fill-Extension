@@ -587,7 +587,7 @@ function getValueForField(field, profileData) {
       return personal?.email;
     
     case 'phoneNumber':
-      return personal?.phone?.number;
+      return personal?.phone?.full || personal?.phone?.number;
     
     case 'phoneCountryCode':
       return personal?.phone?.countryCode || '+1';

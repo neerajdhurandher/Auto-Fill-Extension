@@ -113,6 +113,11 @@
                                            placeholder="Enter your city">
                                 </div>
                                 <div class="form-group">
+                                    <label class="form-label" for="state">State</label>
+                                    <input class="form-input" type="text" id="state" 
+                                           placeholder="Enter your state">
+                                </div>
+                                <div class="form-group">
                                     <label class="form-label" for="postalCode">Postal Code</label>
                                     <input class="form-input" type="text" id="postalCode" 
                                            placeholder="Zip/Postal code">
@@ -134,10 +139,87 @@
                                     <option value="JP">Japan</option>
                                 </select>
                             </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="currentLocation">Current Location</label>
+                                <input class="form-input" type="text" id="currentLocation" 
+                                       placeholder="e.g., San Francisco, CA or Mumbai, India">
+                                <small class="form-help-text">Your current city and region for job location preferences</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label" for="willingToRelocate">Willing to Relocate</label>
+                                <select class="form-input" id="willingToRelocate">
+                                    <option value="">Select option</option>
+                                    <option value="yes">Yes</option>
+                                    <option value="no">No</option>
+                                    <option value="maybe">Open to discussion</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="form-section">
                             <h3 class="form-section__title">Professional Experience</h3>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="totalExperience">Total Experience</label>
+                                    <input class="form-input" type="text" id="totalExperience" 
+                                           placeholder="e.g., 5 years 6 months">
+                                    <small class="form-help-text">Enter your total work experience</small>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="noticePeriod">Notice Period</label>
+                                    <select class="form-input" id="noticePeriod">
+                                        <option value="">Select notice period</option>
+                                        <option value="immediate">Immediate</option>
+                                        <option value="15 days">15 days</option>
+                                        <option value="30 days">30 days</option>
+                                        <option value="45 days">45 days</option>
+                                        <option value="60 days">60 days</option>
+                                        <option value="90 days">90 days</option>
+                                        <option value="negotiable">Negotiable</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label class="form-label" for="currentSalary">Current Salary/CTC</label>
+                                    <input class="form-input" type="text" id="currentSalary" 
+                                           placeholder="e.g., $85,000 or ₹15,00,000">
+                                    <small class="form-help-text">Your current salary or CTC (include currency)</small>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="expectedSalary">Expected Salary/CTC</label>
+                                    <input class="form-input" type="text" id="expectedSalary" 
+                                           placeholder="e.g., $100,000 or ₹18,00,000">
+                                    <small class="form-help-text">Your expected salary or CTC (include currency)</small>
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <h4 class="form-section__subtitle">Professional Links</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="linkedinUrl">LinkedIn Profile</label>
+                                        <input class="form-input" type="url" id="linkedinUrl" 
+                                               placeholder="https://linkedin.com/in/yourprofile">
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="githubUrl">GitHub Profile</label>
+                                        <input class="form-input" type="url" id="githubUrl" 
+                                               placeholder="https://github.com/yourusername">
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" for="portfolioUrl">Portfolio Website</label>
+                                    <input class="form-input" type="url" id="portfolioUrl" 
+                                           placeholder="https://yourportfolio.com">
+                                    <small class="form-help-text">Your personal portfolio or professional website</small>
+                                </div>
+                            </div>
                             
                             <div class="experience-header">
                                 <p class="form-help-text">Add your work experience. Most recent job first.</p>

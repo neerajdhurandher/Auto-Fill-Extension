@@ -419,9 +419,65 @@
             </div>
 
             <div class="field-toggle">
+                <label for="toggle-github">GitHub URL</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="toggle-github" onchange="toggleField('github')">
+                    <span class="slider"></span>
+                </div>
+            </div>
+
+            <div class="field-toggle">
                 <label for="toggle-portfolio">Portfolio URL</label>
                 <div class="toggle-switch">
                     <input type="checkbox" id="toggle-portfolio" onchange="toggleField('portfolio')">
+                    <span class="slider"></span>
+                </div>
+            </div>
+
+            <div class="field-toggle">
+                <label for="toggle-currentLocation">Current Location</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="toggle-currentLocation" onchange="toggleField('currentLocation')">
+                    <span class="slider"></span>
+                </div>
+            </div>
+
+            <div class="field-toggle">
+                <label for="toggle-willingToRelocate">Willing to Relocate</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="toggle-willingToRelocate" onchange="toggleField('willingToRelocate')">
+                    <span class="slider"></span>
+                </div>
+            </div>
+
+            <div class="field-toggle">
+                <label for="toggle-totalExperience">Total Experience</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="toggle-totalExperience" onchange="toggleField('totalExperience')">
+                    <span class="slider"></span>
+                </div>
+            </div>
+
+            <div class="field-toggle">
+                <label for="toggle-noticePeriod">Notice Period</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="toggle-noticePeriod" onchange="toggleField('noticePeriod')">
+                    <span class="slider"></span>
+                </div>
+            </div>
+
+            <div class="field-toggle">
+                <label for="toggle-currentSalary">Current Salary</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="toggle-currentSalary" onchange="toggleField('currentSalary')">
+                    <span class="slider"></span>
+                </div>
+            </div>
+
+            <div class="field-toggle">
+                <label for="toggle-expectedSalary">Expected Salary</label>
+                <div class="toggle-switch">
+                    <input type="checkbox" id="toggle-expectedSalary" onchange="toggleField('expectedSalary')">
                     <span class="slider"></span>
                 </div>
             </div>
@@ -548,21 +604,13 @@
                         </div>
                         
                         <div class="form-group visible" id="field-state">
-                            <label for="state">State/Province <span class="field-indicator">(state)</span></label>
-                            <select id="state" name="state">
-                                <option value="">Select State</option>
-                                <option value="AL">Alabama</option>
-                                <option value="CA">California</option>
-                                <option value="FL">Florida</option>
-                                <option value="NY">New York</option>
-                                <option value="TX">Texas</option>
-                                <option value="WA">Washington</option>
-                            </select>
+                            <label for="state">State<span class="field-indicator">(state)</span></label>
+                            <input type="text" id="state" name="state" placeholder="e.g. Punjab">
                         </div>
                         
                         <div class="form-group visible" id="field-zipCode">
                             <label for="zipCode">ZIP/Postal Code <span class="field-indicator">(zipCode)</span></label>
-                            <input type="text" id="zipCode" name="zipCode" placeholder="94105">
+                            <input type="text" id="zipCode" name="zipCode" placeholder="e.g. 94105">
                         </div>
                     </div>
                     
@@ -580,6 +628,23 @@
                             </select>
                         </div>
                     </div>
+
+                    <div class="form-row">
+                        <div class="form-group" id="field-currentLocation">
+                            <label for="currentLocation">Current Location <span class="field-indicator">(currentLocation)</span></label>
+                            <input type="text" id="currentLocation" name="currentLocation" placeholder="e.g., San Francisco, CA">
+                        </div>
+                        
+                        <div class="form-group" id="field-willingToRelocate">
+                            <label for="willingToRelocate">Willing to Relocate <span class="field-indicator">(willingToRelocate)</span></label>
+                            <select id="willingToRelocate" name="willingToRelocate">
+                                <option value="">Select option</option>
+                                <option value="yes">Yes</option>
+                                <option value="no">No</option>
+                                <option value="maybe">Open to discussion</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Professional Information Section -->
@@ -592,9 +657,47 @@
                             <input type="url" id="linkedin" name="linkedin" placeholder="https://www.linkedin.com/in/yourprofile">
                         </div>
                         
+                        <div class="form-group" id="field-github">
+                            <label for="github">GitHub Profile <span class="field-indicator">(github)</span></label>
+                            <input type="url" id="github" name="github" placeholder="https://github.com/yourusername">
+                        </div>
+                        
                         <div class="form-group" id="field-portfolio">
                             <label for="portfolio">Portfolio/Website <span class="field-indicator">(portfolio)</span></label>
                             <input type="url" id="portfolio" name="portfolio" placeholder="https://yourportfolio.com">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group" id="field-totalExperience">
+                            <label for="totalExperience">Total Experience <span class="field-indicator">(totalExperience)</span></label>
+                            <input type="text" id="totalExperience" name="totalExperience" placeholder="e.g., 5 years 6 months">
+                        </div>
+                        
+                        <div class="form-group" id="field-noticePeriod">
+                            <label for="noticePeriod">Notice Period <span class="field-indicator">(noticePeriod)</span></label>
+                            <select id="noticePeriod" name="noticePeriod">
+                                <option value="">Select notice period</option>
+                                <option value="immediate">Immediate</option>
+                                <option value="15 days">15 days</option>
+                                <option value="30 days">30 days</option>
+                                <option value="45 days">45 days</option>
+                                <option value="60 days">60 days</option>
+                                <option value="90 days">90 days</option>
+                                <option value="negotiable">Negotiable</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group" id="field-currentSalary">
+                            <label for="currentSalary">Current Salary/CTC <span class="field-indicator">(currentSalary)</span></label>
+                            <input type="text" id="currentSalary" name="currentSalary" placeholder="e.g., $85,000 or ₹15,00,000">
+                        </div>
+                        
+                        <div class="form-group" id="field-expectedSalary">
+                            <label for="expectedSalary">Expected Salary/CTC <span class="field-indicator">(expectedSalary)</span></label>
+                            <input type="text" id="expectedSalary" name="expectedSalary" placeholder="e.g., $100,000 or ₹18,00,000">
                         </div>
                     </div>
                     
@@ -609,11 +712,6 @@
                                 <option value="5-10">5-10 years</option>
                                 <option value="10+">10+ years</option>
                             </select>
-                        </div>
-                        
-                        <div class="form-group" id="field-salary">
-                            <label for="salary">Salary Expectation <span class="field-indicator">(salary)</span></label>
-                            <input type="text" id="salary" name="salary" placeholder="$80,000 - $120,000">
                         </div>
                     </div>
                 </div>

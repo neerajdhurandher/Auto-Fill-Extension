@@ -41,10 +41,20 @@ function initializeElements() {
     addressLine1: document.getElementById('addressLine1'),
     addressLine2: document.getElementById('addressLine2'),
     city: document.getElementById('city'),
+    state: document.getElementById('state'),
     postalCode: document.getElementById('postalCode'),
     country: document.getElementById('country'),
+    currentLocation: document.getElementById('currentLocation'),
+    willingToRelocate: document.getElementById('willingToRelocate'),
     
     // Professional fields
+    totalExperience: document.getElementById('totalExperience'),
+    noticePeriod: document.getElementById('noticePeriod'),
+    currentSalary: document.getElementById('currentSalary'),
+    expectedSalary: document.getElementById('expectedSalary'),
+    linkedinUrl: document.getElementById('linkedinUrl'),
+    githubUrl: document.getElementById('githubUrl'),
+    portfolioUrl: document.getElementById('portfolioUrl'),
     experienceList: document.getElementById('experienceList'),
     addExperienceBtn: document.getElementById('addExperienceBtn'),
     skills: document.getElementById('skills'),
@@ -150,12 +160,28 @@ function populateProfileForm(profileData) {
       elements.addressLine1.value = personal.address.line1 || '';
       elements.addressLine2.value = personal.address.line2 || '';
       elements.city.value = personal.address.city || '';
+      elements.state.value = personal.address.state || '';
       elements.postalCode.value = personal.address.postalCode || '';
       elements.country.value = personal.address.country || '';
     }
+    
+    // Location and relocation preferences
+    elements.currentLocation.value = personal.currentLocation || '';
+    elements.willingToRelocate.value = personal.willingToRelocate || '';
   }
   
   if (professional) {
+    // Professional details
+    elements.totalExperience.value = professional.totalExperience || '';
+    elements.noticePeriod.value = professional.noticePeriod || '';
+    elements.currentSalary.value = professional.currentSalary || '';
+    elements.expectedSalary.value = professional.expectedSalary || '';
+    
+    // Professional links
+    elements.linkedinUrl.value = professional.linkedinUrl || '';
+    elements.githubUrl.value = professional.githubUrl || '';
+    elements.portfolioUrl.value = professional.portfolioUrl || '';
+    
     elements.skills.value = professional.skills?.join(', ') || '';
     elements.coverLetter.value = professional.coverLetter || '';
     
@@ -245,11 +271,21 @@ async function saveProfileData() {
         line1: elements.addressLine1.value.trim(),
         line2: elements.addressLine2.value.trim(),
         city: elements.city.value.trim(),
+        state: elements.state.value.trim(),
         postalCode: elements.postalCode.value.trim(),
         country: elements.country.value
-      }
+      },
+      currentLocation: elements.currentLocation.value.trim(),
+      willingToRelocate: elements.willingToRelocate.value
     },
     professional: {
+      totalExperience: elements.totalExperience.value.trim(),
+      noticePeriod: elements.noticePeriod.value,
+      currentSalary: elements.currentSalary.value.trim(),
+      expectedSalary: elements.expectedSalary.value.trim(),
+      linkedinUrl: elements.linkedinUrl.value.trim(),
+      githubUrl: elements.githubUrl.value.trim(),
+      portfolioUrl: elements.portfolioUrl.value.trim(),
       experiences: collectExperienceData(),
       skills: elements.skills.value.split(',').map(s => s.trim()).filter(s => s),
       coverLetter: elements.coverLetter.value.trim()

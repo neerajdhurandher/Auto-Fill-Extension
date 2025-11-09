@@ -44,7 +44,7 @@ async function initializeStorageManager() {
         setTimeout(resolve, 100);
       }
     });
-    
+
     storageManager = window.storageManager;
     if (storageManager) {
       await storageManager.initialize();
@@ -94,7 +94,7 @@ function setupEventListeners() {
 async function loadProfileStatus() {
   try {
     let profileData = null;
-    
+
     // Try to use storage manager for encrypted data
     if (storageManager) {
       profileData = await storageManager.getUserProfile();
@@ -103,11 +103,11 @@ async function loadProfileStatus() {
       const result = await chrome.storage.local.get(POPUP_STORAGE_KEYS.USER_PROFILE);
       profileData = result[POPUP_STORAGE_KEYS.USER_PROFILE];
     }
-    
-    const hasProfile = profileData && 
-                      profileData.personal &&
-                      (profileData.personal.firstName ||
-                       profileData.personal.email);
+
+    const hasProfile = profileData &&
+      profileData.personal &&
+      (profileData.personal.firstName ||
+        profileData.personal.email);
 
     updateProfileDisplay(hasProfile);
   } catch (error) {
@@ -144,18 +144,18 @@ function updateProfileDisplay(hasProfile) {
 async function checkCurrentPageForm() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     if (!tab || !isJobPortal(tab.url)) {
       updateStatusDisplay('inactive', 'Not on job portal');
       return;
     }
 
     updateStatusDisplay('active', 'Job portal detected');
-    
+
     // Try to get cached detection results
     const result = await chrome.storage.local.get(POPUP_STORAGE_KEYS.LAST_DETECTION);
-    if (result[POPUP_STORAGE_KEYS.LAST_DETECTION] && 
-        result[POPUP_STORAGE_KEYS.LAST_DETECTION].url === tab.url) {
+    if (result[POPUP_STORAGE_KEYS.LAST_DETECTION] &&
+      result[POPUP_STORAGE_KEYS.LAST_DETECTION].url === tab.url) {
       displayDetectionResults(result[POPUP_STORAGE_KEYS.LAST_DETECTION]);
     }
   } catch (error) {
@@ -179,7 +179,7 @@ function isJobPortal(url) {
     '127.0.0.1',
     'localhost'
   ];
-  
+
   return jobPortals.some(portal => url.includes(portal));
 }
 
@@ -189,36 +189,95 @@ function isJobPortal(url) {
  */
 async function ensureContentScriptInjected(tabId) {
   try {
-    // Try to ping the content script first
+    console.log('=== Starting Content Script Injection Process ===');
+    console.log('Tab ID:', tabId);
+    
+    // Get tab info for debugging
     try {
-      await chrome.tabs.sendMessage(tabId, { action: 'ping' });
-      // If this succeeds, content script is already loaded
-      return;
-    } catch (pingError) {
-      // Content script not loaded, need to inject it
-      console.log('Content script not loaded, injecting...');
+      const tab = await chrome.tabs.get(tabId);
+      console.log('Tab URL:', tab.url);
+      console.log('Tab status:', tab.status);
+    } catch (tabError) {
+      console.warn('Could not get tab info:', tabError);
     }
     
-    // Inject the content scripts manually
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      files: [
-        'content/detector.js'
-      ]
-    });
-      //  'utils/performance.js',
-      //   'utils/advancedDetector.js', 
-      //   'utils/autoFillEngine.js',
-      //   'content/enhancedDetector.js'
+    // Try to ping the content script first
+    try {
+      console.log('Testing existing content script...');
+      const response = await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+      if (response && response.success) {
+        console.log('Content script already loaded and responding:', response);
+        return;
+      }
+    } catch (pingError) {
+      // Content script not loaded, need to inject it
+      console.log('Content script not loaded, will inject. Error was:', pingError.message);
+    }
+
+    console.log('Starting script injection process...');
     
-    console.log('Content scripts injected successfully');
+    // Try injecting masterInjection.js first (optional dependency)
+    try {
+      console.log('Attempting to inject masterInjection.js...');
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content/masterInjection.js']
+      });
+      console.log('✅ masterInjection.js injected successfully');
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } catch (injectionError) {
+      console.warn('⚠️ Failed to inject masterInjection.js (will use fallback):', injectionError);
+      console.warn('Error details:', {
+        message: injectionError.message,
+        stack: injectionError.stack
+      });
+    }
+
+    // Inject masterDetector.js (required) to detect fields
+    try {
+      console.log('Attempting to inject masterDetector.js...');
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content/masterDetector.js']
+      });
+      console.log('✅ masterDetector.js injected successfully');
+    } catch (detectorError) {
+      console.error('❌ CRITICAL: Failed to inject masterDetector.js:', detectorError);
+      console.error('Error details:', {
+        message: detectorError.message,
+        stack: detectorError.stack,
+        name: detectorError.name
+      });
+      throw new Error('Critical: Cannot inject main detector script - ' + detectorError.message);
+    }
+
+    console.log('All scripts injected, waiting for initialization...');
+
+    // Wait longer for initialization
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Wait for initialization
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+    // Verify the injection worked
+    try {
+      console.log('Verifying content script is responding...');
+      const verifyResponse = await chrome.tabs.sendMessage(tabId, { action: 'ping' });
+      if (!verifyResponse || !verifyResponse.success) {
+        throw new Error('Content script not responding after injection');
+      }
+      console.log('✅ Content script injection verified successfully:', verifyResponse);
+    } catch (verifyError) {
+      console.error('❌ Content script verification failed:', verifyError);
+      throw new Error('Content script failed to initialize: ' + verifyError.message);
+    }
+
   } catch (error) {
-    console.error('Failed to inject content script:', error);
-    throw new Error('Cannot inject content script on this page');
+    console.error('❌ Failed to inject content script:', error);
+    console.error('Full error details:', {
+      message: error.message,
+      stack: error.stack,
+      tabId: tabId,
+      name: error.name
+    });
+    throw new Error('Cannot inject content script on this page: ' + error.message);
   }
 }
 
@@ -239,19 +298,19 @@ async function handleDetectFields() {
   try {
     updateStatusDisplay('working', 'Detecting...');
     elements.detectFieldsBtn.disabled = true;
-    
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     if (!tab) {
       throw new Error('No active tab found');
     }
-    
+
     // Check if tab URL is supported
     if (!isJobPortal(tab.url)) {
       updateStatusDisplay('inactive', 'Not a supported job portal');
       return;
     }
-    
+
     // Try to inject content script if not already present
     try {
       await ensureContentScriptInjected(tab.id);
@@ -260,20 +319,20 @@ async function handleDetectFields() {
       updateStatusDisplay('inactive', 'Failed to load on this page');
       return;
     }
-    
+
     // Wait a moment for content script to initialize
     await new Promise(resolve => setTimeout(resolve, 500));
-    
+
     // Send message to content script to detect fields
     const response = await chrome.tabs.sendMessage(tab.id, {
       action: MESSAGES.DETECT_FIELDS
     });
-    
+
     if (response && response.success) {
       await saveDetectionResults(tab.url, response.fields);
       displayDetectionResults(response);
       updateStatusDisplay('active', 'Fields detected');
-      
+
       // Enable fill button if profile exists
       let profileData = null;
       if (storageManager) {
@@ -282,7 +341,7 @@ async function handleDetectFields() {
         const profileResult = await chrome.storage.local.get(POPUP_STORAGE_KEYS.USER_PROFILE);
         profileData = profileResult[POPUP_STORAGE_KEYS.USER_PROFILE];
       }
-      
+
       if (profileData) {
         elements.fillFormBtn.disabled = false;
       }
@@ -292,7 +351,7 @@ async function handleDetectFields() {
     }
   } catch (error) {
     console.error('Error detecting fields:', error);
-    
+
     if (error.message.includes('Could not establish connection')) {
       updateStatusDisplay('inactive', 'Content script not loaded');
     } else if (error.message.includes('Cannot access')) {
@@ -300,7 +359,7 @@ async function handleDetectFields() {
     } else {
       updateStatusDisplay('inactive', 'Detection failed');
     }
-    
+
     hideDetectionResults();
   } finally {
     elements.detectFieldsBtn.disabled = false;
@@ -314,16 +373,16 @@ async function handleFillForm() {
   try {
     updateStatusDisplay('working', 'Filling form...');
     elements.fillFormBtn.disabled = true;
-    
+
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    
+
     if (!tab) {
       throw new Error('No active tab found');
     }
-    
+
     // Get user profile data (decrypt if needed)
     let profileData = null;
-    
+
     if (storageManager) {
       // Use storage manager to get decrypted profile data
       console.log('Using storage manager to fetch and decrypt profile data');
@@ -334,14 +393,21 @@ async function handleFillForm() {
       const profileResult = await chrome.storage.local.get(POPUP_STORAGE_KEYS.USER_PROFILE);
       profileData = profileResult[POPUP_STORAGE_KEYS.USER_PROFILE];
     }
-    
+
     console.log('Profile data retrieved:', profileData ? 'Found' : 'Not found');
-    
-    if (!profileData) {
-      updateStatusDisplay('inactive', 'No profile found');
+    if (profileData) {
+      console.log('Profile data keys:', Object.keys(profileData));
+      console.log('Profile data details:', JSON.stringify(profileData, null, 2));
+    } else {
+      console.warn('Profile data is null/undefined');
+    }
+
+    if (!profileData || Object.keys(profileData).length === 0) {
+      updateStatusDisplay('inactive', 'No profile found - please set up your profile first');
+      console.error('ERROR: No profile data available. User needs to set up profile.');
       return;
     }
-    
+
     // Ensure content script is available
     try {
       await ensureContentScriptInjected(tab.id);
@@ -350,21 +416,45 @@ async function handleFillForm() {
       updateStatusDisplay('inactive', 'Failed to load on this page');
       return;
     }
+
+    // Force field detection before filling to ensure detectedFields is populated
+    console.log('Triggering field detection before filling...');
+    const detectionResponse = await chrome.tabs.sendMessage(tab.id, {
+      action: MESSAGES.DETECT_FIELDS
+    });
     
+    if (!detectionResponse || !detectionResponse.success || !detectionResponse.fields || detectionResponse.fields.length === 0) {
+      updateStatusDisplay('inactive', 'No fields detected');
+      return;
+    }
+    
+    console.log(`${detectionResponse.fields.length} fields detected, proceeding with fill...`);
+
     // Send message to content script to fill form
+    console.log('Sending fillForm message with profile data...');
     const response = await chrome.tabs.sendMessage(tab.id, {
       action: MESSAGES.FILL_FORM,
       profileData: profileData  // Now using decrypted data
     });
-    
+
+    console.log('Fill form response:', response);
+
     if (response && response.success) {
-      updateStatusDisplay('active', 'Form filled successfully');
+      const filledCount = response.filledFields || 0;
+      const totalFields = response.totalFields || 0;
+      updateStatusDisplay('active', `Form filled: ${filledCount}/${totalFields} fields`);
+      
+      if (response.fillErrors && response.fillErrors.length > 0) {
+        console.warn('Some fields failed to fill:', response.fillErrors);
+      }
     } else {
-      updateStatusDisplay('inactive', 'Fill failed');
+      const errorDetail = response?.error || response?.fillErrors || 'Unknown error';
+      updateStatusDisplay('inactive', `Fill failed: ${errorDetail}`);
+      console.error('Fill failed. Response:', response);
     }
   } catch (error) {
     console.error('Error filling form:', error);
-    
+
     if (error.message.includes('Could not establish connection')) {
       updateStatusDisplay('inactive', 'Content script not loaded');
     } else if (error.message.includes('Cannot access')) {
@@ -402,21 +492,21 @@ async function saveDetectionResults(url, fields) {
  */
 function displayDetectionResults(detection) {
   const { fields } = detection;
-  
+
   // Update field count
   const countNumber = elements.fieldCount.querySelector('.field-count__number');
   const countText = elements.fieldCount.querySelector('.field-count__text');
-  
+
   countNumber.textContent = fields.length;
   countText.textContent = fields.length === 1 ? 'field found' : 'fields found';
-  
+
   // Update field types
   const fieldTypeMap = {};
   fields.forEach(field => {
     const type = field.type || 'text';
     fieldTypeMap[type] = (fieldTypeMap[type] || 0) + 1;
   });
-  
+
   elements.fieldTypes.innerHTML = '';
   Object.entries(fieldTypeMap).forEach(([type, count]) => {
     const tag = document.createElement('span');
@@ -424,7 +514,7 @@ function displayDetectionResults(detection) {
     tag.textContent = `${type} (${count})`;
     elements.fieldTypes.appendChild(tag);
   });
-  
+
   // Show results
   elements.detectionResults.classList.remove('info-card--hidden');
 }

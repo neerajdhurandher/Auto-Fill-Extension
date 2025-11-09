@@ -1010,7 +1010,7 @@
         // Initialize page
         window.addEventListener('load', () => {
             // Default to showing basic fields for testing
-            const defaultFields = ['firstName', 'lastName', 'email', 'phone'];
+            const defaultFields = ['firstName', 'lastName', 'fullName', 'email', 'phone', 'linkedin', 'github', 'portfolio', 'totalExperience',  'currentSalary', 'expectedSalary', 'currentLocation'];
             defaultFields.forEach(fieldName => {
                 const toggle = document.getElementById(`toggle-${fieldName}`);
                 if (toggle) {

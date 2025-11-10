@@ -82,6 +82,9 @@ function fillFormWithProfileData(profileData, detectedFields = null) {
       return;
     }
     
+    // Set current element for validation context
+    window.currentProcessingElement = element;
+    
     const value = getValueForField(field.category, profileData);
     
     console.log(`Field ${index} (${field.category}):`, {
@@ -142,18 +145,181 @@ function fillFormWithProfileData(profileData, detectedFields = null) {
 }
 
 /**
+ * Validates field mapping and corrects misdetected fields
+ * @param {string} category - Detected field category
+ * @param {Object} profileData - Profile data object
+ * @returns {string|null} Corrected value or null to continue with standard mapping
+ */
+function validateAndCorrectFieldMapping(category, profileData) {
+  // Get current element being processed (from call stack context)
+  const currentElement = getCurrentProcessingElement();
+  
+  // Only handle misdetected firstName/lastName fields, NOT fullName fields
+  if (category === 'fullName' && currentElement) {
+    const fieldContext = analyzeElementForNameType(currentElement);
+    
+    console.log(`🔍 Validation check for fullName field:`, {
+      elementName: currentElement.name,
+      elementId: currentElement.id,
+      isActuallyFirstName: fieldContext.isActuallyFirstName,
+      isActuallyLastName: fieldContext.isActuallyLastName
+    });
+    
+    // Only correct if this is clearly a firstName field misdetected as fullName
+    if (fieldContext.isActuallyFirstName) {
+      const firstName = getNestedProfileValue('personal.firstName', profileData) || getNestedProfileValue('firstName', profileData);
+      if (firstName) {
+        console.log(`🔧 Correcting misdetected fullName → firstName: "${firstName}"`);
+        return firstName;
+      }
+    }
+    
+    // Only correct if this is clearly a lastName field misdetected as fullName  
+    if (fieldContext.isActuallyLastName) {
+      const lastName = getNestedProfileValue('personal.lastName', profileData) || getNestedProfileValue('lastName', profileData);
+      if (lastName) {
+        console.log(`🔧 Correcting misdetected fullName → lastName: "${lastName}"`);
+        return lastName;
+      }
+    }
+    
+    // For legitimate fullName fields, let the standard mapping handle it
+    console.log(`✅ Legitimate fullName field - using standard mapping`);
+  }
+  
+  return null; // Continue with standard mapping
+}
+
+/**
+ * Get current processing element from global context
+ */
+function getCurrentProcessingElement() {
+  return window.currentProcessingElement || null;
+}
+
+/**
+ * Analyze element to determine actual name field type
+ * @param {HTMLElement} element - Element to analyze
+ * @returns {Object} Analysis result
+ */
+function analyzeElementForNameType(element) {
+  if (!element) return { isActuallyFirstName: false, isActuallyLastName: false };
+  
+  const attributes = [
+    element.name || '',
+    element.id || '', 
+    element.placeholder || '',
+    element.className || ''
+  ].join(' ').toLowerCase();
+  
+  const labels = getSurroundingText(element).toLowerCase();
+  const allText = `${attributes} ${labels}`;
+  
+  console.log(`🔍 Analyzing element for name type: "${allText}"`);
+  
+  // Be very conservative - only flag as misdetected if there are CLEAR indicators
+  const hasStrongFirstIndicators = /first|fname|given|forename/.test(allText) && !/last|surname|family/.test(allText);
+  const hasStrongLastIndicators = /last|lname|surname|family/.test(allText) && !/first|given|forename/.test(allText);
+  
+  return {
+    isActuallyFirstName: hasStrongFirstIndicators,
+    isActuallyLastName: hasStrongLastIndicators
+  };
+}
+
+/**
+ * Get surrounding text for context
+ */
+function getSurroundingText(element) {
+  let text = '';
+  
+  // Get label text using existing function
+  const labelText = findAssociatedLabel ? findAssociatedLabel(element) : '';
+  text += labelText + ' ';
+  
+  // Get placeholder
+  text += element.placeholder || '';
+  
+  // Get parent element text
+  const parent = element.parentElement;
+  if (parent) {
+    text += ' ' + parent.textContent.replace(element.value || '', '').trim();
+  }
+  
+  return text.trim();
+}
+
+/**
+ * Get full name value from profile data
+ */
+function getFullNameValue(profileData) {
+  // Try to get existing full name or construct it
+  const existingFullName = getNestedProfileValue('personal.fullName', profileData) || getNestedProfileValue('fullName', profileData);
+  if (existingFullName) return existingFullName;
+  
+  const firstName = getNestedProfileValue('personal.firstName', profileData) || getNestedProfileValue('firstName', profileData) || '';
+  const lastName = getNestedProfileValue('personal.lastName', profileData) || getNestedProfileValue('lastName', profileData) || '';
+  
+  return `${firstName} ${lastName}`.trim();
+}
+
+/**
+ * Intelligent name splitter
+ * @param {string} fullName - Full name to split
+ * @returns {Object} Object with firstName and lastName
+ */
+function splitFullName(fullName) {
+  if (!fullName || typeof fullName !== 'string') {
+    return { firstName: '', lastName: '' };
+  }
+  
+  const parts = fullName.trim().split(/\s+/);
+  
+  if (parts.length === 0) return { firstName: '', lastName: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  if (parts.length === 2) return { firstName: parts[0], lastName: parts[1] };
+  
+  // Handle middle names: First [Middle...] Last
+  return {
+    firstName: parts[0],
+    lastName: parts[parts.length - 1]
+  };
+}
+
+/**
+ * Helper function to get nested values
+ */
+function getNestedProfileValue(path, profileData) {
+  const keys = path.split('.');
+  let value = profileData;
+  for (const key of keys) {
+    value = value?.[key];
+    if (value === undefined) break;
+  }
+  return value;
+}
+
+/**
  * Maps profile data categories to actual values using nested object navigation
  * @param {string} category - Field category (e.g., 'firstName', 'email')
  * @param {Object} profileData - User profile data object
  * @returns {string|null} The mapped value or null if not found
  */
 function getValueForField(category, profileData) {
-  console.log(`getValueForField called for category: ${category}`);
+  console.log(`🎯 getValueForField called for category: ${category}`);
   console.log('Profile data keys:', Object.keys(profileData || {}));
   
   if (!profileData) {
     console.warn('No profile data provided to getValueForField');
     return null;
+  }
+  
+  // Apply validation and correction for misdetected fields (skip for fullName to keep it simple)
+  if (category !== 'fullName') {
+    const correctedValue = validateAndCorrectFieldMapping(category, profileData);
+    if (correctedValue !== null) {
+      return correctedValue;
+    }
   }
   
   // Support both nested and flat profile structures
@@ -167,64 +333,96 @@ function getValueForField(category, profileData) {
     console.log(`  getValue('${path}') = ${value}`);
     return value;
   };
-  
-  const mappings = {
+
+  // Field mapping with keyword lists for value lookup
+  const fieldMappings = {
     // Personal Information
-    firstName: getValue('personal.firstName') || getValue('firstName'),
-    lastName: getValue('personal.lastName') || getValue('lastName'),
-    fullName: `${getValue('personal.firstName') || getValue('firstName') || ''} ${getValue('personal.lastName') || getValue('lastName') || ''}`.trim(),
-    email: getValue('personal.email') || getValue('email'),
-    phone: getValue('personal.phone.full') || getValue('personal.phone.number') || getValue('phone'),
-    phoneNumber: getValue('personal.phone.full') || getValue('personal.phone.number') || getValue('phoneNumber'),
+    firstName: ['personal.firstName', 'firstName'],
+    lastName: ['personal.lastName', 'lastName'],
+    fullName: ['personal.fullName', 'fullName'], // Will be handled specially
+    email: ['personal.email', 'email'],
+    phone: ['personal.phone.full', 'personal.phone.number', 'phone'],
+    phoneNumber: ['personal.phone.full', 'personal.phone.number', 'phoneNumber'],
     
     // Address Information
-    addressLine1: getValue('personal.address.line1') || getValue('addressLine1'),
-    addressLine2: getValue('personal.address.line2') || getValue('addressLine2'),
-    address: getValue('personal.address.line1') || getValue('address'),
-    city: getValue('personal.address.city') || getValue('city'),
-    state: getValue('personal.address.state') || getValue('state'),
-    postalCode: getValue('personal.address.postalCode') || getValue('postalCode'),
-    zipCode: getValue('personal.address.postalCode') || getValue('zipCode'),
-    country: getValue('personal.address.country') || getValue('country'),
-    currentLocation: getValue('personal.currentLocation') || getValue('currentLocation'),
-    willingToRelocate: getValue('personal.willingToRelocate') || getValue('willingToRelocate'),
+    addressLine1: ['personal.address.line1', 'addressLine1'],
+    addressLine2: ['personal.address.line2', 'addressLine2'],
+    address: ['personal.address.line1', 'address'],
+    city: ['personal.address.city', 'city'],
+    state: ['personal.address.state', 'state'],
+    postalCode: ['personal.address.postalCode', 'postalCode'],
+    zipCode: ['personal.address.postalCode', 'zipCode'],
+    country: ['personal.address.country', 'country'],
+    currentLocation: ['personal.currentLocation', 'currentLocation'],
+    willingToRelocate: ['personal.willingToRelocate', 'willingToRelocate'],
     
     // Professional Information
-    jobTitle: getValue('professional.experiences.0.title') || getValue('professional.currentTitle') || getValue('jobTitle'),
-    currentTitle: getValue('professional.experiences.0.title') || getValue('professional.currentTitle') || getValue('currentTitle'),
-    company: getValue('professional.experiences.0.company') || getValue('professional.currentCompany') || getValue('company'),
-    currentCompany: getValue('professional.experiences.0.company') || getValue('professional.currentCompany') || getValue('currentCompany'),
-    totalExperience: getValue('professional.totalExperience') || getValue('totalExperience'),
-    experience: getValue('professional.totalExperience') || getValue('experience'),
-    currentSalary: getValue('professional.currentSalary') || getValue('currentSalary'),
-    expectedSalary: getValue('professional.expectedSalary') || getValue('expectedSalary'),
-    salary: getValue('professional.expectedSalary') || getValue('professional.currentSalary') || getValue('salary'),
-    noticePeriod: getValue('professional.noticePeriod') || getValue('noticePeriod'),
+    jobTitle: ['professional.experiences.0.title', 'professional.currentTitle', 'jobTitle'],
+    currentTitle: ['professional.experiences.0.title', 'professional.currentTitle', 'currentTitle'],
+    company: ['professional.experiences.0.company', 'professional.currentCompany', 'company'],
+    currentCompany: ['professional.experiences.0.company', 'professional.currentCompany', 'currentCompany'],
+    totalExperience: ['professional.totalExperience', 'totalExperience'],
+    experience: ['professional.totalExperience', 'experience'],
+    currentSalary: ['professional.currentSalary', 'currentSalary'],
+    expectedSalary: ['professional.expectedSalary', 'expectedSalary'],
+    salary: ['professional.expectedSalary', 'professional.currentSalary', 'salary'],
+    noticePeriod: ['professional.noticePeriod', 'noticePeriod'],
     
     // Social/Professional Links
-    linkedinUrl: getValue('professional.linkedinUrl') || getValue('linkedinUrl'),
-    linkedin: getValue('professional.linkedinUrl') || getValue('linkedin'),
-    githubUrl: getValue('professional.githubUrl') || getValue('githubUrl'),
-    github: getValue('professional.githubUrl') || getValue('github'),
-    portfolioUrl: getValue('professional.portfolioUrl') || getValue('portfolioUrl'),
-    portfolio: getValue('professional.portfolioUrl') || getValue('portfolio'),
-    website: getValue('professional.portfolioUrl') || getValue('professional.websiteUrl') || getValue('website'),
+    linkedinUrl: ['professional.linkedinUrl', 'linkedinUrl'],
+    linkedin: ['professional.linkedinUrl', 'linkedin'],
+    githubUrl: ['professional.githubUrl', 'githubUrl'],
+    github: ['professional.githubUrl', 'github'],
+    portfolioUrl: ['professional.portfolioUrl', 'portfolioUrl'],
+    portfolio: ['professional.portfolioUrl', 'portfolio'],
+    website: ['professional.portfolioUrl', 'professional.websiteUrl', 'website'],
     
     // Skills and Education
-    skills: getValue('professional.skills') ? (Array.isArray(getValue('professional.skills')) ? getValue('professional.skills').join(', ') : getValue('professional.skills')) : getValue('skills'),
-    education: getValue('education.degree') || getValue('education.school') || getValue('education'),
-    degree: getValue('education.degree') || getValue('degree'),
-    school: getValue('education.school') || getValue('education.university') || getValue('school'),
-    university: getValue('education.university') || getValue('education.school') || getValue('university'),
+    skills: ['professional.skills', 'skills'],
+    education: ['education.degree', 'education.school', 'education'],
+    degree: ['education.degree', 'degree'],
+    school: ['education.school', 'education.university', 'school'],
+    university: ['education.university', 'education.school', 'university'],
     
     // Cover Letter and Additional
-    coverLetter: getValue('professional.coverLetter') || getValue('coverLetter'),
-    summary: getValue('professional.summary') || getValue('summary'),
-    objective: getValue('professional.objective') || getValue('objective')
+    coverLetter: ['professional.coverLetter', 'coverLetter'],
+    summary: ['professional.summary', 'summary'],
+    objective: ['professional.objective', 'objective']
   };
+
+  // Function to get value using keyword list
+  const getValueFromKeywords = (keywords) => {
+    for (const keyword of keywords) {
+      const value = getValue(keyword);
+      if (value !== undefined && value !== null && value !== '') {
+        return value;
+      }
+    }
+    return null;
+  };
+
+  const keywordsForCategory = fieldMappings[category] || [];
+
+  let categoryValue = null;
+
+  if (category === 'fullName') {
+    // Special handling for fullName - always use constructed value
+    let firstName = getValueFromKeywords(fieldMappings['firstName']);
+    let lastName = getValueFromKeywords(fieldMappings['lastName']);
+    let fullNameValue = `${firstName} ${lastName}`.trim();
+    categoryValue = fullNameValue;
+  } else if (category === 'skills') {
+    // Special handling for skills array
+    const skillsValue = getValueFromKeywords(keywordsForCategory);
+    categoryValue = skillsValue ? (Array.isArray(skillsValue) ? skillsValue.join(', ') : skillsValue) : null;
+  } else {
+    // Standard keyword-based lookup
+    categoryValue = getValueFromKeywords(keywordsForCategory);
+  }
   
-  const result = mappings[category] || null;
-  console.log(`getValueForField result for '${category}':`, result);
+  const result = categoryValue || null;
+  console.log(`🎯 getValueForField result for '${category}':`, result);
+  
   return result;
 }
 

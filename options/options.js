@@ -241,7 +241,13 @@ async function handleProfileSubmit(event) {
   event.preventDefault();
   
   try {
-    showLoading(true);
+    showLoading(true); 
+    // Scroll to top of the page after successful save
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+
     await saveProfileData();
     showMessage('Profile saved successfully!', 'success');
   } catch (error) {

@@ -310,19 +310,13 @@ const fieldScore = calculateFieldRelevance(field); // Score: 0-100 based on attr
 ```
 
 ### Testing Standards
-```javascript
-// Test file naming: *.test.js
-// detector.test.js
-describe('FormFieldDetector', () => {
-  test('should detect standard input fields', () => {
-    // Test implementation
-  });
-
-  test('should handle LinkedIn-specific selectors', () => {
-    // Portal-specific test
-  });
-});
-```
+1. **No Test Files**: Don't create any test file or test function during development.
+2. **User Validation**: Complete your job and ask user to validate the result.
+3. **Error Handling**: Test edge cases like missing profile data, network issues, and malformed forms.
+4. **Browser Compatibility**: Test on latest Chrome versions and ensure Manifest V3 compliance.
+5. **Security Testing**: Validate no sensitive data logging and proper encryption implementation.
+6. **Regression Testing**: After fixes, re-check previously working functionality to prevent regressions.
+7. **Console Log Analysis**: Use detailed logging for debugging field detection and form filling processes.
 
 ### Git Commit Standards
 ```

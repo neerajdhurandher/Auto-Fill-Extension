@@ -69,24 +69,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 const MASTER_FIELD_DATABASE = {
   // Personal Information Fields
   firstName: {
-    keywords: ['first', 'fname', 'given', 'forename', 'christian', 'first-name', 'firstname', 'first_name'],
+    keywords: ['first', 'fname', 'given', 'forename', 'christian', 'first-name', 'firstname', 'first_name', 'applicant_first', 'candidate_first'],
     priority: 10,
+    specificity: 'high',
     variations: ['applicant_first', 'candidate_first', 'user_first'],
-    contextKeywords: ['first', 'given', 'christian']
+    contextKeywords: ['first', 'given', 'christian', 'forename'],
+    platformKeywords: {
+      linkedin: ['firstName', 'given-name'],
+      indeed: ['applicant.firstName', 'first'],
+      glassdoor: ['firstname', 'given'],
+      workday: ['givenName', 'firstName']
+    }
   },
   
   lastName: {
-    keywords: ['last', 'lname', 'family', 'surname', 'lastname', 'last-name', 'last_name'],
+    keywords: ['last', 'lname', 'family', 'surname', 'lastname', 'last-name', 'last_name', 'applicant_last', 'candidate_last'],
     priority: 10,
+    specificity: 'high',
     variations: ['applicant_last', 'candidate_last', 'user_last'],
-    contextKeywords: ['last', 'family', 'surname']
+    contextKeywords: ['last', 'family', 'surname'],
+    platformKeywords: {
+      linkedin: ['lastName', 'family-name'],
+      indeed: ['applicant.lastName', 'surname'],
+      glassdoor: ['lastname', 'family'],
+      workday: ['familyName', 'lastName']
+    }
   },
   
   fullName: {
-    keywords: ['name', 'full', 'complete', 'applicant', 'candidate', 'full-name', 'fullname', 'full_name'],
-    priority: 9,
-    variations: ['applicant_name', 'candidate_name', 'user_name'],
-    contextKeywords: ['full', 'complete', 'name']
+    keywords: ['fullname', 'full_name', 'complete_name', 'applicant_name', 'candidate_name'], 
+    priority: 12,
+    specificity: 'low',
+    variations: ['applicant_name', 'candidate_name', 'user_name', 'complete_name'],
+    contextKeywords: ['full', 'complete', 'entire']
   },
   
   email: {
@@ -176,14 +191,14 @@ const MASTER_FIELD_DATABASE = {
   },
   
   currentSalary: {
-    keywords: ['current', 'salary', 'ctc', 'compensation', 'pay', 'current-salary'],
+    keywords: ['current', 'current-ctc', 'compensation', 'pay', 'current-salary'],
     priority: 6,
     variations: ['current_salary', 'current_ctc'],
     contextKeywords: ['current', 'salary', 'compensation']
   },
   
   expectedSalary: {
-    keywords: ['expected', 'salary', 'ctc', 'desired', 'target', 'expected-salary'],
+    keywords: ['expected', 'expected-ctc', 'desired', 'target', 'expected-salary'],
     priority: 6,
     variations: ['expected_salary', 'desired_salary'],
     contextKeywords: ['expected', 'desired', 'target']
@@ -205,10 +220,10 @@ const MASTER_FIELD_DATABASE = {
   },
   
   githubUrl: {
-    keywords: ['github', 'git', 'repository', 'code', 'portfolio', 'github-url'],
+    keywords: ['github', 'git', 'repository', 'github-url'],
     priority: 6,
     variations: ['github_url', 'github_profile'],
-    contextKeywords: ['github', 'git', 'code']
+    contextKeywords: ['github', 'git']
   },
   
   portfolioUrl: {
@@ -259,8 +274,20 @@ const PORTAL_CONFIGS = {
     domain: 'linkedin.com',
     priority: 10,
     specificSelectors: {
-      firstName: ['#single-line-text-form-component-firstName', 'input[name*="firstName"]'],
-      lastName: ['#single-line-text-form-component-lastName', 'input[name*="lastName"]'],
+      firstName: [
+        '#single-line-text-form-component-firstName',
+        'input[name*="firstName"]',
+        'input[id*="firstName"]',
+        'input[aria-label*="First name"]',
+        'input[placeholder*="First name"]'
+      ],
+      lastName: [
+        '#single-line-text-form-component-lastName', 
+        'input[name*="lastName"]',
+        'input[id*="lastName"]',
+        'input[aria-label*="Last name"]',
+        'input[placeholder*="Last name"]'
+      ],
       email: ['input[name*="email"]', '#email-address'],
       phone: ['input[name*="phone"]', '#phone-number'],
       linkedinUrl: ['input[name*="linkedinUrl"]', 'input[name*="linkedin"]']
@@ -274,8 +301,20 @@ const PORTAL_CONFIGS = {
     domain: 'indeed.com',
     priority: 9,
     specificSelectors: {
-      firstName: ['input[name="applicant.name"]', 'input[name*="firstName"]'],
-      lastName: ['input[name="applicant.lastName"]', 'input[name*="lastName"]'],
+      firstName: [
+        'input[name="applicant.firstName"]',
+        'input[name*="firstName"]',
+        'input[name*="first"]',
+        'input[id*="firstName"]',
+        'input[placeholder*="First name"]'
+      ],
+      lastName: [
+        'input[name="applicant.lastName"]',
+        'input[name*="lastName"]', 
+        'input[name*="last"]',
+        'input[id*="lastName"]',
+        'input[placeholder*="Last name"]'
+      ],
       email: ['input[name="applicant.email"]', 'input[name*="email"]'],
       phone: ['input[name="applicant.phone"]', 'input[name*="phone"]']
     },
@@ -288,8 +327,18 @@ const PORTAL_CONFIGS = {
     domain: 'glassdoor.com',
     priority: 8,
     specificSelectors: {
-      firstName: ['input[name*="firstName"]', '#firstName'],
-      lastName: ['input[name*="lastName"]', '#lastName'],
+      firstName: [
+        'input[name*="firstName"]', 
+        '#firstName',
+        'input[name*="first"]',
+        'input[id*="first"]'
+      ],
+      lastName: [
+        'input[name*="lastName"]', 
+        '#lastName',
+        'input[name*="last"]',
+        'input[id*="last"]'
+      ],
       email: ['input[name*="email"]', '#email'],
       phone: ['input[name*="phone"]', '#phone']
     },
@@ -302,12 +351,40 @@ const PORTAL_CONFIGS = {
     domain: 'monster.com',
     priority: 7,
     specificSelectors: {
-      firstName: ['input[name*="first"]', '#firstname'],
-      lastName: ['input[name*="last"]', '#lastname'],
+      firstName: [
+        'input[name*="first"]', 
+        '#firstname',
+        'input[id*="firstName"]'
+      ],
+      lastName: [
+        'input[name*="last"]', 
+        '#lastname',
+        'input[id*="lastName"]'
+      ],
       email: ['input[name*="email"]'],
       phone: ['input[name*="phone"]']
     },
     excludePatterns: ['hidden', 'captcha'],
+    dynamicContent: true
+  },
+  
+  workday: {
+    name: 'Workday',
+    domain: 'workday.com',
+    priority: 9,
+    specificSelectors: {
+      firstName: [
+        'input[name*="givenName"]',
+        'input[name*="firstName"]',
+        'input[data-automation-id*="firstName"]'
+      ],
+      lastName: [
+        'input[name*="familyName"]',
+        'input[name*="lastName"]', 
+        'input[data-automation-id*="lastName"]'
+      ]
+    },
+    excludePatterns: ['hidden', 'token'],
     dynamicContent: true
   }
 };
@@ -479,11 +556,20 @@ function directAttributeMatching(element) {
       const normalizedValue = normalizeString(attrValue);
       
       for (const keyword of config.keywords) {
-        if (normalizedValue === normalizeString(keyword) || 
-            normalizedValue.includes(normalizeString(keyword))) {
+        let confidenceLevel = undefined;
+
+        const keywordNormalizeString = normalizeString(keyword);
+
+        if (normalizedValue === keywordNormalizeString ){
+          confidenceLevel = 0.95;
+        }else if (normalizedValue.includes(keywordNormalizeString)) {
+          confidenceLevel = 0.70;
+        }
+
+        if (confidenceLevel) {
           results.push({
             field: fieldType,
-            confidence: 0.95,
+            confidence: confidenceLevel,
             method: 'direct',
             source: `${attrName}:${keyword}`,
             priority: config.priority

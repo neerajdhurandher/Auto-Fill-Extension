@@ -82,6 +82,10 @@ function setupEventListeners() {
   // Experience management
   elements.addExperienceBtn.addEventListener('click', handleAddExperience);
   
+  // Event delegation for experience entries
+  elements.experienceList.addEventListener('click', handleExperienceListClick);
+  elements.experienceList.addEventListener('change', handleExperienceListChange);
+  
   // Action buttons
   elements.clearProfile.addEventListener('click', handleClearProfile);
   elements.clearAllData.addEventListener('click', handleClearAllData);
@@ -93,6 +97,28 @@ function setupEventListeners() {
     input.addEventListener('input', debounce(handleAutoSave, 1000));
     input.addEventListener('change', debounce(handleAutoSave, 1000));
   });
+}
+
+/**
+ * Handle clicks within experience list (event delegation)
+ * @param {Event} event - Click event
+ */
+function handleExperienceListClick(event) {
+  if (event.target.classList.contains('experience-entry__remove')) {
+    const entryId = event.target.dataset.entryId;
+    removeExperienceEntry(entryId);
+  }
+}
+
+/**
+ * Handle change events within experience list (event delegation)
+ * @param {Event} event - Change event
+ */
+function handleExperienceListChange(event) {
+  if (event.target.type === 'checkbox' && event.target.id.includes('currentJob_')) {
+    const entryId = event.target.dataset.entryId;
+    toggleEndDate(entryId);
+  }
 }
 
 /**
@@ -185,9 +211,17 @@ function populateProfileForm(profileData) {
     elements.skills.value = professional.skills?.join(', ') || '';
     elements.coverLetter.value = professional.coverLetter || '';
     
-    // Load experience entries
-    if (professional.experience && professional.experience.length > 0) {
-      professional.experience.forEach(exp => {
+    // Load experience entries - handle both naming conventions for backward compatibility
+    const experienceData = professional.experiences || professional.experience || [];
+    console.log('Loading profile data:', { 
+      hasExperiences: !!(professional.experiences), 
+      hasExperience: !!(professional.experience),
+      experienceCount: experienceData.length,
+      experienceData: experienceData
+    });
+    
+    if (experienceData.length > 0) {
+      experienceData.forEach(exp => {
         addExperienceEntry(exp);
       });
     } else {
@@ -322,66 +356,69 @@ function handleAddExperience() {
  * @param {Object} experienceData - Optional existing experience data
  */
 function addExperienceEntry(experienceData = {}) {
-  const entryIndex = elements.experienceList.children.length;
+  const entryId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const displayNumber = elements.experienceList.children.length + 1;
   const entryDiv = document.createElement('div');
   entryDiv.className = 'experience-entry';
-  entryDiv.dataset.index = entryIndex;
+  entryDiv.dataset.entryId = entryId;
   
   entryDiv.innerHTML = `
     <div class="experience-entry__header">
-      <h4 class="experience-entry__title">Experience #${entryIndex + 1}</h4>
-      <button type="button" class="experience-entry__remove" onclick="removeExperienceEntry(${entryIndex})">
+      <h4 class="experience-entry__title">Experience #${displayNumber}</h4>
+      <button type="button" class="experience-entry__remove" data-entry-id="${entryId}">
         Remove
       </button>
     </div>
     
     <div class="experience-entry__form">
       <div class="form-group">
-        <label class="form-label" for="jobTitle_${entryIndex}">Job Title *</label>
-        <input class="form-input" type="text" id="jobTitle_${entryIndex}" 
+        <label class="form-label" for="jobTitle_${entryId}">Job Title *</label>
+        <input class="form-input" type="text" id="jobTitle_${entryId}" 
                value="${experienceData.jobTitle || ''}" 
                placeholder="e.g., Software Engineer, Marketing Manager" required>
       </div>
       
       <div class="form-group">
-        <label class="form-label" for="company_${entryIndex}">Company *</label>
-        <input class="form-input" type="text" id="company_${entryIndex}" 
+        <label class="form-label" for="company_${entryId}">Company *</label>
+        <input class="form-input" type="text" id="company_${entryId}" 
                value="${experienceData.company || ''}" 
                placeholder="Company name" required>
       </div>
       
       <div class="form-group">
-        <label class="form-label" for="location_${entryIndex}">Location</label>
-        <input class="form-input" type="text" id="location_${entryIndex}" 
+        <label class="form-label" for="location_${entryId}">Location</label>
+        <input class="form-input" type="text" id="location_${entryId}" 
                value="${experienceData.location || ''}" 
                placeholder="City, State/Country">
       </div>
       
-      <div class="form-group experience-entry__dates">
-        <div>
-          <label class="form-label" for="startDate_${entryIndex}">Start Date</label>
-          <input class="form-input" type="month" id="startDate_${entryIndex}" 
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="startDate_${entryId}">Start Date</label>
+          <input class="form-input" type="month" id="startDate_${entryId}" 
                  value="${experienceData.startDate || ''}">
         </div>
         
-        <div>
-          <label class="form-label" for="endDate_${entryIndex}">End Date</label>
-          <input class="form-input" type="month" id="endDate_${entryIndex}" 
+        <div class="form-group">
+          <label class="form-label" for="endDate_${entryId}">End Date</label>
+          <input class="form-input" type="month" id="endDate_${entryId}" 
                  value="${experienceData.endDate || ''}" 
                  ${experienceData.currentJob ? 'disabled' : ''}>
         </div>
-        
+      </div>
+      
+      <div class="form-group">
         <div class="current-job-checkbox">
-          <input type="checkbox" id="currentJob_${entryIndex}" 
+          <input type="checkbox" id="currentJob_${entryId}" 
                  ${experienceData.currentJob ? 'checked' : ''}
-                 onchange="toggleEndDate(${entryIndex})">
-          <label for="currentJob_${entryIndex}">Currently working here</label>
+                 data-entry-id="${entryId}">
+          <label for="currentJob_${entryId}">Currently working here</label>
         </div>
       </div>
       
       <div class="form-group form-group--full">
-        <label class="form-label" for="description_${entryIndex}">Job Description</label>
-        <textarea class="form-input form-input--textarea" id="description_${entryIndex}" 
+        <label class="form-label" for="description_${entryId}">Job Description</label>
+        <textarea class="form-input form-input--textarea" id="description_${entryId}" 
                   placeholder="Describe your key responsibilities, achievements, and technologies used">${experienceData.description || ''}</textarea>
       </div>
     </div>
@@ -399,50 +436,63 @@ function addExperienceEntry(experienceData = {}) {
 
 /**
  * Remove experience entry
- * @param {number} index - Entry index to remove
+ * @param {string} entryId - Entry ID to remove
  */
-function removeExperienceEntry(index) {
-  const entryDiv = document.querySelector(`[data-index="${index}"]`);
-  if (entryDiv) {
-    entryDiv.remove();
-    updateExperienceIndices();
-    handleAutoSave();
+function removeExperienceEntry(entryId) {
+  try {
+    const entryDiv = document.querySelector(`[data-entry-id="${entryId}"]`);
+    if (!entryDiv) {
+      console.warn(`Experience entry with ID ${entryId} not found`);
+      return false;
+    }
+    
+    // Add visual feedback
+    entryDiv.style.opacity = '0.5';
+    entryDiv.style.pointerEvents = 'none';
+    
+    setTimeout(() => {
+      entryDiv.remove();
+      updateExperienceNumbers();
+      handleAutoSave();
+      console.log('Experience entry removed successfully');
+    }, 150);
+    
+    return true;
+  } catch (error) {
+    console.error('Error removing experience entry:', error);
+    showMessage('Error removing experience entry', 'error');
+    return false;
   }
 }
 
 /**
- * Update experience entry indices after removal
+ * Update experience entry display numbers after removal
  */
-function updateExperienceIndices() {
+function updateExperienceNumbers() {
   const entries = elements.experienceList.children;
   Array.from(entries).forEach((entry, newIndex) => {
-    entry.dataset.index = newIndex;
     const title = entry.querySelector('.experience-entry__title');
     if (title) {
       title.textContent = `Experience #${newIndex + 1}`;
-    }
-    
-    // Update remove button
-    const removeBtn = entry.querySelector('.experience-entry__remove');
-    if (removeBtn) {
-      removeBtn.setAttribute('onclick', `removeExperienceEntry(${newIndex})`);
     }
   });
 }
 
 /**
  * Toggle end date field based on current job checkbox
- * @param {number} index - Experience entry index
+ * @param {string} entryId - Experience entry ID
  */
-function toggleEndDate(index) {
-  const checkbox = document.getElementById(`currentJob_${index}`);
-  const endDateInput = document.getElementById(`endDate_${index}`);
+function toggleEndDate(entryId) {
+  const checkbox = document.getElementById(`currentJob_${entryId}`);
+  const endDateInput = document.getElementById(`endDate_${entryId}`);
   
-  if (checkbox.checked) {
-    endDateInput.disabled = true;
-    endDateInput.value = '';
-  } else {
-    endDateInput.disabled = false;
+  if (checkbox && endDateInput) {
+    if (checkbox.checked) {
+      endDateInput.disabled = true;
+      endDateInput.value = '';
+    } else {
+      endDateInput.disabled = false;
+    }
   }
 }
 
@@ -452,22 +502,29 @@ function toggleEndDate(index) {
  */
 function collectExperienceData() {
   const experiences = [];
-  const entries = elements.experienceList.children;
+  const entries = elements.experienceList.querySelectorAll('.experience-entry');
   
-  Array.from(entries).forEach((entry, index) => {
-    const jobTitle = document.getElementById(`jobTitle_${index}`)?.value.trim();
-    const company = document.getElementById(`company_${index}`)?.value.trim();
+  entries.forEach(entry => {
+    const entryId = entry.dataset.entryId;
+    const jobTitle = entry.querySelector(`[id*="jobTitle"]`)?.value.trim();
+    const company = entry.querySelector(`[id*="company"]`)?.value.trim();
     
     // Only include entries with at least job title and company
     if (jobTitle && company) {
+      const locationInput = entry.querySelector(`[id*="location"]`);
+      const startDateInput = entry.querySelector(`[id*="startDate"]`);
+      const endDateInput = entry.querySelector(`[id*="endDate"]`);
+      const currentJobInput = entry.querySelector(`[id*="currentJob"]`);
+      const descriptionInput = entry.querySelector(`[id*="description"]`);
+      
       experiences.push({
         jobTitle: jobTitle,
         company: company,
-        location: document.getElementById(`location_${index}`)?.value.trim() || '',
-        startDate: document.getElementById(`startDate_${index}`)?.value || '',
-        endDate: document.getElementById(`endDate_${index}`)?.value || '',
-        currentJob: document.getElementById(`currentJob_${index}`)?.checked || false,
-        description: document.getElementById(`description_${index}`)?.value.trim() || ''
+        location: locationInput?.value.trim() || '',
+        startDate: startDateInput?.value || '',
+        endDate: endDateInput?.value || '',
+        currentJob: currentJobInput?.checked || false,
+        description: descriptionInput?.value.trim() || ''
       });
     }
   });
@@ -475,9 +532,7 @@ function collectExperienceData() {
   return experiences;
 }
 
-// Make functions global for onclick handlers
-window.removeExperienceEntry = removeExperienceEntry;
-window.toggleEndDate = toggleEndDate;
+// Global functions no longer needed - using event delegation instead
 
 /**
  * Handle auto-save functionality

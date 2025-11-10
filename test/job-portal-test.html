@@ -307,6 +307,101 @@
             border: 1px solid #ffeaa7;
         }
 
+        /* Experience Cards Styles */
+        .experience-card {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .experience-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .experience-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .remove-experience-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 500;
+        }
+
+        .remove-experience-btn:hover {
+            background: #c0392b;
+        }
+
+        .experience-form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .experience-form-group {
+            flex: 1;
+        }
+
+        .experience-form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #34495e;
+        }
+
+        .experience-form-group input,
+        .experience-form-group textarea {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .experience-form-group textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        .experience-checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .experience-checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .experience-checkbox-group label {
+            font-size: 12px;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .add-experience-btn:hover {
+            background: #2980b9 !important;
+        }
+
         @media (max-width: 768px) {
             .container {
                 flex-direction: column;
@@ -317,8 +412,15 @@
                 position: static;
             }
             
-            .form-row {
+            .form-row,
+            .experience-form-row {
                 flex-direction: column;
+            }
+
+            .experience-card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
             }
         }
     </style>
@@ -714,6 +816,28 @@
                             </select>
                         </div>
                     </div>
+
+                    <!-- Job Experience Sub-section -->
+                    <div class="job-experience-section" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e9ecef;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h4 style="color: #2c3e50; margin: 0; font-size: 16px;">🏢 Job Experience</h4>
+                            <button type="button" class="add-experience-btn" onclick="addExperienceCard()" style="
+                                background: #3498db;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                padding: 8px 16px;
+                                cursor: pointer;
+                                font-size: 12px;
+                                font-weight: 500;
+                                transition: background 0.3s;
+                            ">+ Add Experience</button>
+                        </div>
+                        
+                        <div id="experience-cards-container">
+                            <!-- Experience cards will be added here -->
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Additional Information Section -->
@@ -768,6 +892,9 @@
         // Track custom fields
         let customFields = [];
         let customFieldCounter = 0;
+        
+        // Track experience cards
+        let experienceCounter = 0;
 
         // Field toggle functionality
         function toggleField(fieldName) {
@@ -1002,9 +1129,142 @@
                 data[key] = value;
             }
             
+            // Collect experience data separately for better organization
+            const experiences = [];
+            for (let i = 1; i <= experienceCounter; i++) {
+                const cardElement = document.getElementById(`experience-card-${i}`);
+                if (cardElement) {
+                    const experience = {
+                        jobTitle: document.getElementById(`jobTitle_${i}`)?.value || '',
+                        companyName: document.getElementById(`companyName_${i}`)?.value || '',
+                        jobLocation: document.getElementById(`jobLocation_${i}`)?.value || '',
+                        startDate: document.getElementById(`startDate_${i}`)?.value || '',
+                        endDate: document.getElementById(`endDate_${i}`)?.value || '',
+                        currentlyWorking: document.getElementById(`currentlyWorking_${i}`)?.checked || false,
+                        jobDescription: document.getElementById(`jobDescription_${i}`)?.value || ''
+                    };
+                    
+                    // Only add if at least job title and company are filled
+                    if (experience.jobTitle.trim() || experience.companyName.trim()) {
+                        experiences.push(experience);
+                    }
+                }
+            }
+            
+            data.experiences = experiences;
+            
             // Display collected data
             console.log('Form submitted with data:', data);
-            alert('Application submitted successfully! Check the console for form data.');
+            console.log('Experience entries:', experiences);
+            alert(`Application submitted successfully! Found ${experiences.length} experience entries. Check the console for detailed form data.`);
+        }
+
+        // Add experience card
+        function addExperienceCard() {
+            experienceCounter++;
+            const container = document.getElementById('experience-cards-container');
+            
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'experience-card';
+            cardDiv.id = `experience-card-${experienceCounter}`;
+            
+            cardDiv.innerHTML = `
+                <div class="experience-card-header">
+                    <h5 class="experience-card-title">Experience #${experienceCounter}</h5>
+                    <button type="button" class="remove-experience-btn" onclick="removeExperienceCard(${experienceCounter})">
+                        Remove
+                    </button>
+                </div>
+                
+                <div class="experience-form-row">
+                    <div class="experience-form-group">
+                        <label for="jobTitle_${experienceCounter}">Job Title</label>
+                        <input type="text" id="jobTitle_${experienceCounter}" name="jobTitle_${experienceCounter}" placeholder="e.g., Software Engineer">
+                    </div>
+                    <div class="experience-form-group">
+                        <label for="companyName_${experienceCounter}">Company Name</label>
+                        <input type="text" id="companyName_${experienceCounter}" name="companyName_${experienceCounter}" placeholder="e.g., Tech Corp Inc.">
+                    </div>
+                </div>
+                
+                <div class="experience-form-row">
+                    <div class="experience-form-group">
+                        <label for="jobLocation_${experienceCounter}">Location</label>
+                        <input type="text" id="jobLocation_${experienceCounter}" name="jobLocation_${experienceCounter}" placeholder="e.g., San Francisco, CA">
+                    </div>
+                </div>
+                
+                <div class="experience-form-row">
+                    <div class="experience-form-group">
+                        <label for="startDate_${experienceCounter}">Start Date</label>
+                        <input type="month" id="startDate_${experienceCounter}" name="startDate_${experienceCounter}">
+                    </div>
+                    <div class="experience-form-group">
+                        <label for="endDate_${experienceCounter}">End Date</label>
+                        <input type="month" id="endDate_${experienceCounter}" name="endDate_${experienceCounter}">
+                    </div>
+                </div>
+                
+                <div class="experience-checkbox-group">
+                    <input type="checkbox" id="currentlyWorking_${experienceCounter}" name="currentlyWorking_${experienceCounter}" onchange="toggleEndDate(${experienceCounter})">
+                    <label for="currentlyWorking_${experienceCounter}">Currently working here</label>
+                </div>
+                
+                <div class="experience-form-row" style="margin-top: 15px;">
+                    <div class="experience-form-group">
+                        <label for="jobDescription_${experienceCounter}">Job Description</label>
+                        <textarea id="jobDescription_${experienceCounter}" name="jobDescription_${experienceCounter}" placeholder="Describe your key responsibilities, achievements, and technologies used..."></textarea>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(cardDiv);
+            
+            console.log(`Added experience card #${experienceCounter}`);
+        }
+
+        // Remove experience card
+        function removeExperienceCard(cardId) {
+            const cardElement = document.getElementById(`experience-card-${cardId}`);
+            const cardElementName = cardElement?.childNodes[1].childNodes[1].innerHTML;
+            if (cardElement && confirm(`Are you sure you want to remove ${cardElementName ? cardElementName : 'this experience'} ?`)) {
+                cardElement.remove();
+                console.log(`Removed experience card #${cardId}`);
+                
+                // Update numbering for remaining cards
+                updateExperienceCardNumbering();
+            }
+        }
+
+        // Update experience card numbering
+        function updateExperienceCardNumbering() {
+            const container = document.getElementById('experience-cards-container');
+            const cards = container.querySelectorAll('.experience-card');
+            
+            cards.forEach((card, index) => {
+                const newNumber = index + 1;
+                const titleElement = card.querySelector('.experience-card-title');
+                if (titleElement) {
+                    titleElement.textContent = `Experience #${newNumber}`;
+                }
+            });
+        }
+
+        // Toggle end date based on currently working checkbox
+        function toggleEndDate(cardId) {
+            const checkbox = document.getElementById(`currentlyWorking_${cardId}`);
+            const endDateInput = document.getElementById(`endDate_${cardId}`);
+            
+            if (checkbox && endDateInput) {
+                if (checkbox.checked) {
+                    endDateInput.disabled = true;
+                    endDateInput.value = '';
+                    endDateInput.style.background = '#f5f5f5';
+                } else {
+                    endDateInput.disabled = false;
+                    endDateInput.style.background = '';
+                }
+            }
         }
 
         // Initialize page
@@ -1018,6 +1278,9 @@
                     toggleField(fieldName);
                 }
             });
+            
+            // Add one default experience card
+            addExperienceCard();
         });
 
         // Add extension detection indicator

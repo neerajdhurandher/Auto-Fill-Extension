@@ -464,6 +464,7 @@ function fillFormField(element, value) {
     
     // Convert value to string for most inputs
     const stringValue = String(value);
+    const lowerValue = stringValue.toLowerCase();
     
     // Handle different field types
     if (element.tagName === 'SELECT') {
@@ -484,7 +485,6 @@ function fillFormField(element, value) {
       
       // Try case-insensitive matches
       if (!matchingOption) {
-        const lowerValue = stringValue.toLowerCase();
         matchingOption = options.find(option => 
           option.value.toLowerCase() === lowerValue ||
           option.text.toLowerCase() === lowerValue

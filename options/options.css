@@ -267,6 +267,12 @@ body {
 
 .experience-entry__form {
   display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.experience-entry__form .form-row {
+  display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
@@ -519,7 +525,7 @@ body {
     grid-template-columns: 1fr;
   }
   
-  .experience-entry__form {
+  .experience-entry__form .form-row {
     grid-template-columns: 1fr;
   }
   

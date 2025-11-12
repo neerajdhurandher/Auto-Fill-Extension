@@ -61,6 +61,8 @@ function fillFormWithProfileData(profileData, detectedFields = null) {
   
   fieldsToFill.forEach((field, index) => {
     const element = field.element;
+    let fillResult = {};
+
     
     console.log(`Processing field ${index}:`, {
       category: field.category,
@@ -84,45 +86,50 @@ function fillFormWithProfileData(profileData, detectedFields = null) {
     
     // Set current element for validation context
     window.currentProcessingElement = element;
-    
-    const value = getValueForField(field.category, profileData);
-    
-    console.log(`Field ${index} (${field.category}):`, {
-      requestedCategory: field.category,
-      retrievedValue: value,
-      valueType: typeof value,
-      elementTagName: element.tagName,
-      elementType: element.type
-    });
-    
-    if (value) {
-      console.log(`Filling field ${index} (${field.category}) with:`, value);
-      
-      const fillResult = fillFormField(element, value);
-      
-      if (fillResult.success) {
-        // to highlight filled fields
-        highlightFields(element, field)
-        filledCount++;
-        fillResults.push({
-          field: field.category,
-          value: value,
-          confidence: field.confidence,
-          methods: field.methods,
-          element: element.tagName + (element.type ? `[${element.type}]` : ''),
-          actualValue: fillResult.actualValue
-        });
-        console.log(`Successfully filled field ${index}`);
-      } else {
-        console.log(`Failed to fill field ${index}:`, fillResult.error);
-        fillErrors.push({
-          field: field.category,
-          error: fillResult.error,
-          index: index
-        });
-      }
+    let value = null;
+
+    if(field.customType == "jobExperience"){
+      fillResult = fillJobExperienceField(field, profileData);
+      value = fillResult.value || null;
     } else {
-      console.log(`No value available for field ${index} (${field.category})`);
+      value = getValueForField(field.category, profileData);
+      console.log(`Field ${index} (${field.category}):`, {
+        requestedCategory: field.category,
+        retrievedValue: value,
+        valueType: typeof value,
+        elementTagName: element.tagName,
+        elementType: element.type
+      });
+      
+      if (!value) {
+        console.log(`No value available for field ${index} (${field.category})`);
+        return;
+      }
+      
+      console.log(`Filling field ${index} (${field.category}) with:`, value);
+      fillResult = fillFormField(element, value);
+    }
+    
+    if (fillResult.success) {
+      // to highlight filled fields
+      highlightFields(element, field)
+      filledCount++;
+      fillResults.push({
+        field: field.category,
+        value: value,
+        confidence: field.confidence,
+        methods: field.methods,
+        element: element.tagName + (element.type ? `[${element.type}]` : ''),
+        actualValue: fillResult.actualValue
+      });
+      console.log(`Successfully filled field ${index}`);
+    } else {
+      console.log(`Failed to fill field ${index}:`, fillResult.error);
+      fillErrors.push({
+        field: field.category,
+        error: fillResult.error,
+        index: index
+      });
     }
   });
   
@@ -143,6 +150,55 @@ function fillFormWithProfileData(profileData, detectedFields = null) {
   
   return result;
 }
+
+
+function fillJobExperienceField(field, profileData) {
+  console.log('Filling job experience field:', field.category);
+  let fillResult = {};
+
+  // Extract job experience data from profile
+  const experiences = profileData?.professional?.experiences || [];
+  if (experiences.length === 0) {
+    console.log('No job experiences found in profile data.');
+    return fillResult;
+  }
+
+  const jobCardIndex = field.cardIndex || 1;
+  const cardIndex = jobCardIndex - 1;
+  const element = field.element;
+  const experienceData = experiences[cardIndex];
+  if (!experienceData) {
+    console.log(`No experience data found for card index ${jobCardIndex}.`);
+    return fillResult;
+  } 
+  const category = field.category;
+
+  const experienceKeyCategoryMap = {
+    experience_jobIndex: 'jobIndex',
+    experience_jobTitle: 'jobTitle',
+    experience_company: 'company',
+    experience_jobLocation: 'jobLocation',
+    experience_startDate: 'startDate',
+    experience_endDate: 'endDate',
+    experience_jobDescription: 'jobDescription',
+    experience_currentlyWorking: 'isCurrentJob'
+  }
+
+  const experienceKey = experienceKeyCategoryMap[category];
+  const experienceValue = experienceData[experienceKey];
+  if (experienceValue) {
+    console.log(`Filling job experience field ${category} with:`, experienceValue);
+    fillResult = fillFormField(element, experienceValue);
+    fillResult.value = experienceValue;
+  } else {
+    console.log(`No value found for job experience field ${category}`);
+  }
+
+  return fillResult;
+
+}
+
+
 
 /**
  * Validates field mapping and corrects misdetected fields
@@ -464,6 +520,7 @@ function fillFormField(element, value) {
     
     // Convert value to string for most inputs
     const stringValue = String(value);
+    const lowerValue = stringValue.toLowerCase();
     
     // Handle different field types
     if (element.tagName === 'SELECT') {
@@ -484,7 +541,6 @@ function fillFormField(element, value) {
       
       // Try case-insensitive matches
       if (!matchingOption) {
-        const lowerValue = stringValue.toLowerCase();
         matchingOption = options.find(option => 
           option.value.toLowerCase() === lowerValue ||
           option.text.toLowerCase() === lowerValue

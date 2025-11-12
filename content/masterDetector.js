@@ -913,6 +913,110 @@ async function detectFormFields() {
   detectedFields = fields;
   debugLog(`Field detection completed: ${fields.length} total, ${fields.filter(f => f.confidence > 0.5).length} high-confidence matches`);
   
+  // Detect experience cards within the same flow
+  try {
+    const experienceResults = await detectExperienceCards();
+    console.log('Experience Cards Detection Results:', experienceResults);
+    console.log(`Found ${experienceResults.totalCards} experience cards using ${experienceResults.detectionMethod} method`);
+    
+    // Create field entries for experience card fields and add to main fields array
+    if (experienceResults.totalCards > 0) {
+      experienceResults.cards.forEach((card, cardArrayIndex) => {
+        console.log(`Experience Card ${card.cardIndex}:`, {
+          confidence: card.detectionConfidence,
+          fields: Object.keys(card.fields).filter(key => card.fields[key]).join(', ')
+        });
+        
+        // Add each field from the experience card to the main fields array
+        Object.entries(card.fields).forEach(([fieldType, fieldElement]) => {
+          if (fieldElement) { // Only add if field element exists
+            const experienceFieldEntry = {
+              // Core field information
+              element: fieldElement,
+              category: `experience_${fieldType}`, // e.g., "experience_jobTitle", "experience_company"
+              confidence: card.detectionConfidence / 100, // Convert percentage to 0-1 scale
+              methods: ['experience-card-detection'],
+              priority: 8, // High priority for experience fields
+              
+              // Basic element info for compatibility
+              type: fieldElement.type || 'text',
+              name: fieldElement.name || '',
+              id: fieldElement.id || '',
+              placeholder: fieldElement.placeholder || '',
+              className: fieldElement.className || '',
+              
+              // Enhanced info
+              detectionData: {
+                keywords: [fieldType, 'experience', 'job'],
+                priority: 8,
+                specificity: 'high'
+              },
+              portal: portalConfig?.name || 'unknown',
+              index: fields.length + Object.keys(card.fields).indexOf(fieldType), // Unique index
+              
+              // Experience-specific metadata
+              customType: 'jobExperience',
+              cardIndex: card.cardIndex,
+              cardElement: card.container,
+              cardParentElement: experienceResults.parentContainer,
+              experienceFieldType: fieldType, // jobTitle, company, startDate, etc.
+              cardDetectionMethod: experienceResults.detectionMethod,
+              cardDetectionConfidence: card.detectionConfidence,
+              totalCardsFound: experienceResults.totalCards,
+              fieldPosition: Object.keys(card.fields).indexOf(fieldType) + 1,
+              isExperienceField: true,
+              experienceCardData: {
+                totalFieldsInCard: Object.keys(card.fields).filter(key => card.fields[key]).length,
+                availableFieldTypes: Object.keys(card.fields).filter(key => card.fields[key]),
+                cardElementTag: card.container?.tagName || 'unknown',
+                cardElementClasses: card.container?.className || '',
+                cardElementId: card.container?.id || ''
+              }
+            };
+            
+            // Add to main fields array
+            fields.push(experienceFieldEntry);
+            
+          }
+        });
+      });
+      
+      // Log summary of added experience fields
+      const experienceFieldsAdded = fields.filter(f => f.customType === 'jobExperience');
+      console.log(`Experience Fields Dataset Summary:`, {
+        totalExperienceFields: experienceFieldsAdded.length,
+        totalCards: experienceResults.totalCards,
+        detectionMethod: experienceResults.detectionMethod,
+        fieldsByCard: experienceFieldsAdded.reduce((acc, field) => {
+          acc[field.cardIndex] = (acc[field.cardIndex] || 0) + 1;
+          return acc;
+        }, {}),
+        fieldTypes: [...new Set(experienceFieldsAdded.map(f => f.experienceFieldType))]
+      });
+      
+      // Print complete experience fields dataset
+      console.log('Complete Experience Fields Dataset:', experienceFieldsAdded.map(field => ({
+        category: field.category,
+        customType: field.customType,
+        cardIndex: field.cardIndex,
+        experienceFieldType: field.experienceFieldType,
+        elementInfo: {
+          name: field.name,
+          id: field.id,
+          type: field.type,
+          placeholder: field.placeholder
+        },
+        confidence: field.confidence,
+        cardDetectionConfidence: field.cardDetectionConfidence,
+        totalCardsFound: field.totalCardsFound,
+        fieldPosition: field.fieldPosition,
+        experienceCardData: field.experienceCardData
+      })));
+    }
+  } catch (error) {
+    console.error('Error detecting experience cards:', error);
+  }
+  
   return fields;
 }
 
@@ -974,6 +1078,22 @@ async function handleMessage(request, sender, sendResponse) {
           fields: responseFields,
           totalFields: fields.length,
           highConfidenceFields: fields.filter(f => f.confidence > 0.7).length,
+          portal: portalConfig?.name || 'unknown',
+          detectorType: 'master'
+        });
+        break;
+        
+      case 'detectExperienceCards':
+      case 'GET_EXPERIENCE_CARDS':
+        const experienceData = await detectExperienceCards();
+        debugLog('Job experience detection results:', experienceData);
+        
+        sendResponse({
+          success: true,
+          experienceData: experienceData,
+          totalCards: experienceData.totalCards,
+          detectionMethod: experienceData.detectionMethod,
+          hasParentContainer: !!experienceData.parentContainer,
           portal: portalConfig?.name || 'unknown',
           detectorType: 'master'
         });
@@ -1072,6 +1192,10 @@ async function initializeContentScript() {
     // Identify portal configuration
     portalConfig = identifyJobPortal();
 
+    // Run initial field detection (includes experience card detection)
+    detectedFields = await detectFormFields();
+    debugLog(`Initial detection complete: Found ${detectedFields.length} regular fields`);
+
     // Set up mutation observer for dynamic content
     setupMutationObserver();
     
@@ -1086,7 +1210,7 @@ async function initializeContentScript() {
         detectorType: 'master',
         portal: portalConfig?.name || 'unknown',
         fieldsDetected: detectedFields.length,
-        capabilities: ['advanced-detection', 'fuzzy-matching', 'learning']
+        capabilities: ['advanced-detection', 'fuzzy-matching', 'learning', 'experience-cards']
       }
     }));
     
@@ -1094,6 +1218,421 @@ async function initializeContentScript() {
     console.error('Master Detector initialization failed:', error);
     isInitialized = false;
   }
+}
+
+// ============================================================================
+// EXPERIENCE CARD DETECTION
+// ============================================================================
+
+/**
+ * Detects job experience cards and their contained fields
+ * Returns structured data with parent containers and individual field mappings
+ * @returns {Object} Experience detection results
+ */
+async function detectExperienceCards() {
+  debugLog('Starting experience card detection...');
+  
+  const experienceResults = {
+    parentContainer: null,
+    cards: [],
+    totalCards: 0,
+    detectionMethod: 'none'
+  };
+  
+  try {
+    // Experience card container patterns
+    const containerSelectors = [
+      // Common experience sections
+      '[class*="experience"]',
+      '[class*="job"]',
+      '[class*="work"]',
+      '[class*="employment"]',
+      '[class*="career"]',
+      '[id*="experience"]',
+      '[id*="job"]',
+      '[id*="work"]',
+      
+      // Specific portal patterns
+      '.experience-section',
+      '.job-experience',
+      '.work-history',
+      '.employment-history',
+      '#experience-section',
+      '#job-experience',
+      '#work-history',
+      
+      // Generic containers that might hold experience cards
+      '[data-testid*="experience"]',
+      '[data-cy*="experience"]',
+      'section:has([class*="experience"])',
+      'div:has([class*="job-title"])'
+    ];
+    
+    // Find potential parent containers
+    let parentContainer = null;
+    let detectionMethod = 'container';
+    
+    for (const selector of containerSelectors) {
+      try {
+        const containers = document.querySelectorAll(selector);
+        for (const container of containers) {
+          // Check if container has multiple experience-related form fields
+          const formFields = container.querySelectorAll('input, select, textarea');
+          const experienceFields = Array.from(formFields).filter(field => 
+            isExperienceRelatedField(field)
+          );
+          
+          if (experienceFields.length >= 3) { // At least 3 experience-related fields
+            parentContainer = container;
+            break;
+          }
+        }
+        if (parentContainer) break;
+      } catch (e) {
+        // Skip invalid selectors
+        continue;
+      }
+    }
+    
+    // If no container found, try to detect by field patterns
+    if (!parentContainer) {
+      parentContainer = detectExperienceCardsByFieldPatterns();
+      detectionMethod = 'field-pattern';
+    }
+    
+    if (!parentContainer) {
+      console.error('No experience card container found');
+      return experienceResults;
+    }
+    
+    experienceResults.parentContainer = parentContainer;
+    experienceResults.detectionMethod = detectionMethod;
+    
+    // Now detect individual experience cards within the container
+    const cards = await detectIndividualExperienceCards(parentContainer);
+    experienceResults.cards = cards;
+    experienceResults.totalCards = cards.length;
+    
+    return experienceResults;
+    
+  } catch (error) {
+    console.error('Error in experience card detection:', error);
+    return experienceResults;
+  }
+}
+
+/**
+ * Detects individual experience cards within a parent container
+ * @param {Element} parentContainer - The parent container element
+ * @returns {Array} Array of card objects with field mappings
+ */
+async function detectIndividualExperienceCards(parentContainer) {
+  const cards = [];
+  
+  // Card detection patterns
+  const cardSelectors = [
+    // Direct card selectors
+    '.experience-card',
+    '.job-card',
+    '.work-entry',
+    '.employment-entry',
+    '[class*="experience-entry"]',
+    '[class*="job-entry"]',
+    '[class*="experience-item"]',
+    '[class*="experience"][class*="card"]',
+    
+    // Generic card patterns
+    '.card:has([class*="job"])',
+    '.entry:has([class*="experience"])',
+    'div[class*="card"]:has(input[name*="job"])',
+    'div[class*="entry"]:has(input[name*="company"])',
+    
+    // Form-based groupings
+    'fieldset',
+    '[role="group"]',
+    '.form-group:has([name*="job"])',
+    '.form-section:has([name*="experience"])'
+  ];
+  
+  let cardElements = [];
+  
+  // Try to find cards using selectors
+  for (const selector of cardSelectors) {
+    try {
+      const foundCards = parentContainer.querySelectorAll(selector);
+      if (foundCards.length > 0) {
+        cardElements = Array.from(foundCards);
+        break;
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+  
+  // If no cards found by selectors, try to group by field patterns
+  if (cardElements.length === 0) {
+    cardElements = detectCardsByFieldGrouping(parentContainer);
+  }
+  
+  // Process each detected card
+  for (let i = 0; i < cardElements.length; i++) {
+    const cardElement = cardElements[i];
+    const cardIndex = i + 1;
+    
+    const cardData = {
+      cardIndex: cardIndex,
+      container: cardElement,
+      fields: await detectFieldsWithinCard(cardElement, cardIndex),
+      detectionConfidence: 0
+    };
+    
+    // Calculate confidence based on found fields
+    const fieldCount = Object.keys(cardData.fields).filter(key => cardData.fields[key]).length;
+    cardData.detectionConfidence = Math.min(fieldCount * 15, 100);
+    
+    if (fieldCount >= 2) { // At least 2 fields to consider it a valid card
+      cards.push(cardData);
+    }
+  }
+  
+  return cards;
+}
+
+/**
+ * Detects fields within an experience card
+ * @param {Element} cardElement - The card container element
+ * @param {number} cardIndex - The card index number
+ * @returns {Object} Field mapping object
+ */
+async function detectFieldsWithinCard(cardElement, cardIndex) {
+  const fields = {
+    jobTitle: null,
+    company: null,
+    jobLocation: null,
+    startDate: null,
+    endDate: null,
+    currentlyWorking: null,
+    jobDescription: null
+  };
+  
+  const formElements = cardElement.querySelectorAll('input, select, textarea');
+  
+  for (const element of formElements) {
+    const fieldType = await detectExperienceFieldType(element, cardIndex);
+    
+    if (fieldType && !fields[fieldType]) {
+      fields[fieldType] = element;
+    }
+  }
+  
+  return fields;
+}
+
+/**
+ * Detects the type of experience field for a given element
+ * @param {Element} element - The form element
+ * @param {number} cardIndex - The card index for context
+ * @returns {string|null} The field type or null
+ */
+async function detectExperienceFieldType(element, cardIndex) {
+  const elementInfo = {
+    name: (element.name || '').toLowerCase(),
+    id: (element.id || '').toLowerCase(),
+    placeholder: (element.placeholder || '').toLowerCase(),
+    className: (element.className || '').toLowerCase(),
+    type: element.type || 'text'
+  };
+  
+  // Job Title patterns
+  if (matchesPatterns(elementInfo, [
+    'jobtitle', 'job_title', 'job-title', 'title', 'position', 
+    'role', 'designation', 'occupation'
+  ])) {
+    return 'jobTitle';
+  }
+  
+  // Company patterns
+  if (matchesPatterns(elementInfo, [
+    'company', 'employer', 'organization', 'org', 'company_name',
+    'employer_name', 'workplace', 'firm', 'corporation'
+  ])) {
+    return 'company';
+  }
+  
+  // Location patterns
+  if (matchesPatterns(elementInfo, [
+    'location', 'city', 'place', 'address', 'where', 'joblocation',
+    'job_location', 'work_location', 'worklocation'
+  ])) {
+    return 'jobLocation';
+  }
+  
+  // Start Date patterns
+  if (matchesPatterns(elementInfo, [
+    'startdate', 'start_date', 'start-date', 'from', 'begin', 
+    'joining', 'commenced', 'employment_start'
+  ]) || (elementInfo.type === 'date' || elementInfo.type === 'month')) {
+    // Additional check for start vs end
+    if (matchesPatterns(elementInfo, ['start', 'from', 'begin', 'joining'])) {
+      return 'startDate';
+    } else if (matchesPatterns(elementInfo, ['end', 'to', 'until', 'finish'])) {
+      return 'endDate';
+    }
+    // Default to startDate if ambiguous
+    return 'startDate';
+  }
+  
+  // End Date patterns
+  if (matchesPatterns(elementInfo, [
+    'enddate', 'end_date', 'end-date', 'to', 'until', 'finish',
+    'leaving', 'terminated', 'employment_end'
+  ])) {
+    return 'endDate';
+  }
+  
+  // Currently working patterns (checkbox)
+  if (element.type === 'checkbox' && matchesPatterns(elementInfo, [
+    'current', 'currently', 'present', 'ongoing', 'still',
+    'working', 'employed', 'active'
+  ])) {
+    return 'currentlyWorking';
+  }
+  
+  // Description patterns (textarea or large text inputs)
+  if (element.type === 'textarea' || matchesPatterns(elementInfo, [
+    'description', 'desc', 'details', 'responsibilities', 'duties',
+    'summary', 'experience', 'achievements', 'job_description'
+  ])) {
+    return 'jobDescription';
+  }
+  
+  return null;
+}
+
+/**
+ * Checks if element info matches any of the given patterns
+ * @param {Object} elementInfo - Element information object
+ * @param {Array} patterns - Array of patterns to match
+ * @returns {boolean} True if matches any pattern
+ */
+function matchesPatterns(elementInfo, patterns) {
+  const textToCheck = [
+    elementInfo.name,
+    elementInfo.id,
+    elementInfo.placeholder,
+    elementInfo.className
+  ].join(' ').toLowerCase();
+  
+  return patterns.some(pattern => 
+    textToCheck.includes(pattern.toLowerCase()) ||
+    // Check for indexed patterns (e.g., jobTitle_1, company_2)
+    textToCheck.includes(pattern.toLowerCase() + '_') ||
+    textToCheck.includes(pattern.toLowerCase() + '-')
+  );
+}
+
+/**
+ * Checks if a field is experience-related
+ * @param {Element} field - The form field element
+ * @returns {boolean} True if experience-related
+ */
+function isExperienceRelatedField(field) {
+  const experienceKeywords = [
+    'job', 'company', 'employer', 'experience', 'work', 'position',
+    'role', 'title', 'start', 'end', 'current', 'description',
+    'location', 'employment', 'career', 'occupation'
+  ];
+  
+  const fieldText = [
+    field.name || '',
+    field.id || '',
+    field.placeholder || '',
+    field.className || ''
+  ].join(' ').toLowerCase();
+  
+  return experienceKeywords.some(keyword => fieldText.includes(keyword));
+}
+
+/**
+ * Detects experience cards by field patterns when no containers found
+ * @returns {Element|null} Parent container or null
+ */
+function detectExperienceCardsByFieldPatterns() {
+  // Find all experience-related fields
+  const allFields = document.querySelectorAll('input, select, textarea');
+  const experienceFields = Array.from(allFields).filter(isExperienceRelatedField);
+  
+  if (experienceFields.length < 3) {
+    return null;
+  }
+  
+  // Find common parent that contains most experience fields
+  let bestParent = null;
+  let maxFields = 0;
+  
+  // Check various parent levels
+  for (const field of experienceFields) {
+    let parent = field.parentElement;
+    for (let level = 0; level < 5 && parent; level++) {
+      const fieldsInParent = experienceFields.filter(f => parent.contains(f));
+      if (fieldsInParent.length > maxFields) {
+        maxFields = fieldsInParent.length;
+        bestParent = parent;
+      }
+      parent = parent.parentElement;
+    }
+  }
+  
+  return bestParent;
+}
+
+/**
+ * Detects cards by grouping fields when no card containers found
+ * @param {Element} parentContainer - Parent container element
+ * @returns {Array} Array of detected card elements
+ */
+function detectCardsByFieldGrouping(parentContainer) {
+  const formFields = parentContainer.querySelectorAll('input, select, textarea');
+  const experienceFields = Array.from(formFields).filter(isExperienceRelatedField);
+  
+  if (experienceFields.length < 3) {
+    return [];
+  }
+  
+  // Try to group fields by numbered patterns (e.g., job_1, job_2)
+  const numberedGroups = new Map();
+  
+  for (const field of experienceFields) {
+    const fieldInfo = field.name + field.id + field.className;
+    const numberMatch = fieldInfo.match(/_(\d+)|(\d+)_|(\d+)$/);
+    
+    if (numberMatch) {
+      const number = numberMatch[1] || numberMatch[2] || numberMatch[3];
+      if (!numberedGroups.has(number)) {
+        numberedGroups.set(number, []);
+      }
+      numberedGroups.get(number).push(field);
+    }
+  }
+  
+  // Create virtual card containers for each group
+  const cards = [];
+  for (const [number, fields] of numberedGroups) {
+    if (fields.length >= 2) {
+      // Find common parent for these fields
+      let commonParent = fields[0].parentElement;
+      for (const field of fields) {
+        while (commonParent && !commonParent.contains(field)) {
+          commonParent = commonParent.parentElement;
+        }
+      }
+      if (commonParent) {
+        cards.push(commonParent);
+      }
+    }
+  }
+  
+  return cards.length > 0 ? cards : [parentContainer]; // Fallback to parent container
 }
 
 function setupMutationObserver() {
@@ -1119,7 +1658,10 @@ function setupMutationObserver() {
     
     if (shouldRedetect) {
       debugLog('Dynamic content detected, re-running field detection...');
-      setTimeout(async () => await detectFormFields(), 500); // Debounce
+      setTimeout(async () => {
+        detectedFields = await detectFormFields();
+        debugLog(`Dynamic re-detection complete: ${detectedFields.length} fields`);
+      }, 500); // Debounce
     }
   });
   
@@ -1136,6 +1678,7 @@ function setupMutationObserver() {
 if (typeof window !== 'undefined') {
   window.masterDetector = {
     detectFormFields,
+    detectExperienceCards,
     detectedFields: () => detectedFields,
     debugLog
   };

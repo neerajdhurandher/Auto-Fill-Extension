@@ -1192,10 +1192,6 @@ async function initializeContentScript() {
     // Identify portal configuration
     portalConfig = identifyJobPortal();
 
-    // Run initial field detection (includes experience card detection)
-    detectedFields = await detectFormFields();
-    debugLog(`Initial detection complete: Found ${detectedFields.length} regular fields`);
-
     // Set up mutation observer for dynamic content
     setupMutationObserver();
     

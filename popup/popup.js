@@ -174,10 +174,9 @@ function isJobPortal(url) {
     'linkedin.com',
     'indeed.com',
     'glassdoor.com',
-    'monster.com',
-    'ziprecruiter.com',
     '127.0.0.1',
-    'localhost'
+    'localhost',
+    'workday.com'
   ];
 
   return jobPortals.some(portal => url.includes(portal));

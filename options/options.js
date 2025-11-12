@@ -388,7 +388,7 @@ function addExperienceEntry(experienceData = {}) {
       <div class="form-group">
         <label class="form-label" for="location_${entryId}">Location</label>
         <input class="form-input" type="text" id="location_${entryId}" 
-               value="${experienceData.location || ''}" 
+               value="${experienceData.jobLocation || ''}" 
                placeholder="City, State/Country">
       </div>
       
@@ -403,14 +403,14 @@ function addExperienceEntry(experienceData = {}) {
           <label class="form-label" for="endDate_${entryId}">End Date</label>
           <input class="form-input" type="month" id="endDate_${entryId}" 
                  value="${experienceData.endDate || ''}" 
-                 ${experienceData.currentJob ? 'disabled' : ''}>
+                 ${experienceData.isCurrentJob ? 'disabled' : ''}>
         </div>
       </div>
       
       <div class="form-group">
         <div class="current-job-checkbox">
           <input type="checkbox" id="currentJob_${entryId}" 
-                 ${experienceData.currentJob ? 'checked' : ''}
+                 ${experienceData.isCurrentJob ? 'checked' : ''}
                  data-entry-id="${entryId}">
           <label for="currentJob_${entryId}">Currently working here</label>
         </div>
@@ -419,7 +419,7 @@ function addExperienceEntry(experienceData = {}) {
       <div class="form-group form-group--full">
         <label class="form-label" for="description_${entryId}">Job Description</label>
         <textarea class="form-input form-input--textarea" id="description_${entryId}" 
-                  placeholder="Describe your key responsibilities, achievements, and technologies used">${experienceData.description || ''}</textarea>
+                  placeholder="Describe your key responsibilities, achievements, and technologies used">${experienceData.jobDescription || ''}</textarea>
       </div>
     </div>
   `;
@@ -506,6 +506,7 @@ function collectExperienceData() {
   
   entries.forEach(entry => {
     const entryId = entry.dataset.entryId;
+    const jobElementId = entry.querySelector('.experience-entry__title')?.textContent.match(/Experience #(\d+)/)?.[1] || '0';
     const jobTitle = entry.querySelector(`[id*="jobTitle"]`)?.value.trim();
     const company = entry.querySelector(`[id*="company"]`)?.value.trim();
     
@@ -518,13 +519,14 @@ function collectExperienceData() {
       const descriptionInput = entry.querySelector(`[id*="description"]`);
       
       experiences.push({
+        jobIndex: jobElementId,
         jobTitle: jobTitle,
         company: company,
-        location: locationInput?.value.trim() || '',
+        jobLocation: locationInput?.value.trim() || '',
         startDate: startDateInput?.value || '',
         endDate: endDateInput?.value || '',
-        currentJob: currentJobInput?.checked || false,
-        description: descriptionInput?.value.trim() || ''
+        isCurrentJob: currentJobInput?.checked || false,
+        jobDescription: descriptionInput?.value.trim() || ''
       });
     }
   });

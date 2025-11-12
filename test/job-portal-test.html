@@ -898,18 +898,18 @@
 
         // Field toggle functionality
         function toggleField(fieldName) {
-            console.log(`toggleField called for: ${fieldName}`);
+            console.debug(`toggleField called for: ${fieldName}`);
             const fieldElement = document.getElementById(`field-${fieldName}`);
             const toggleElement = document.getElementById(`toggle-${fieldName}`);
             
-            console.log(`Field element found:`, fieldElement);
-            console.log(`Toggle element found:`, toggleElement);
-            console.log(`Toggle checked:`, toggleElement?.checked);
+            console.debug(`Field element found:`, fieldElement);
+            console.debug(`Toggle element found:`, toggleElement);
+            console.debug(`Toggle checked:`, toggleElement?.checked);
             
             if (toggleElement && toggleElement.checked) {
                 if (fieldElement) {
                     fieldElement.classList.add('visible');
-                    console.log(`Added visible class to ${fieldName}`);
+                    console.debug(`Added visible class to ${fieldName}`);
                 } else {
                     console.error(`Field element not found for ${fieldName}`);
                 }
@@ -921,7 +921,7 @@
             } else {
                 if (fieldElement) {
                     fieldElement.classList.remove('visible');
-                    console.log(`Removed visible class from ${fieldName}`);
+                    console.debug(`Removed visible class from ${fieldName}`);
                 }
                 
                 // Update custom fields section visibility

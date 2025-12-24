@@ -1,0 +1,101 @@
+Auto-Fill Assistant Settings
+Configure your profile and preferences
+
+
+👤
+Profile
+
+🔒
+Security
+
+🌐
+Portals
+
+ℹ️
+About
+Personal Information
+Basic Details
+First Name *
+Neeraj
+Last Name *
+Dhurandher
+Email Address *
+neerajdhurandar@gmail.com
+Country Code
+
++91 (India)
+Phone Number
+7224010437
+Type
+
+Mobile
+Address Information
+Address Line 1 *
+AECS Layout
+Address Line 2
+Singasandra
+City *
+Bengaluru
+State
+Karnataka
+Postal Code
+560068
+Country *
+
+India
+Current Location
+Bengaluru
+Your current city and region for job location preferences
+Willing to Relocate
+
+Yes
+Professional Experience
+Total Experience
+3
+Enter your total work experience
+Notice Period
+
+30 days
+Current Salary/CTC
+1500000
+Your current salary or CTC (include currency)
+Expected Salary/CTC
+2200000
+Your expected salary or CTC (include currency)
+Professional Links
+LinkedIn Profile
+https://www.linkedin.com/in/neeraj-dhurandher/
+GitHub Profile
+https://github.com/neerajdhurandher
+Portfolio Website
+https://neerajdhurandher.me
+Your personal portfolio or professional website
+Add your work experience. Most recent job first.
+
+
+➕
+Add Experience
+Experience #1
+Remove
+Job Title *
+e.g., Software Engineer, Marketing Manager
+Company *
+Company name
+Location
+City, State/Country
+Start Date
+
+--------- ----
+End Date
+
+--------- ----
+
+Currently working here
+Job Description
+Describe your key responsibilities, achievements, and technologies used
+Skills & Technologies
+Python, Django, FastAPI, Java, Springboot, ReactJS, Javascript, HTML, CSS, Git, GitHub, AWS, Azure
+Separate multiple skills with commas
+Default Cover Letter Template
+Enter a default cover letter template that can be customized for each application
+This will be used as a starting point for job applications

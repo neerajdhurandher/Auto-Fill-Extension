@@ -21,10 +21,21 @@
                 <span class="btn__icon">⚡</span>
                 Fill Form
             </button>
-            <button class="btn btn--secondary" id="detectFieldsBtn">
+            <button class="btn btn--secondary" id="detectFieldsBtn" disabled>
                 <span class="btn__icon">🔍</span>
                 Detect Fields
             </button>
+            <div class="popup__mode" id="tryModeGroup" aria-label="Detection Mode">
+                <label class="toggle" for="tryModeToggle">
+                    <input type="checkbox" id="tryModeToggle" aria-label="Try on this site" />
+                    <span class="toggle__track" aria-hidden="true"></span>
+                    <span class="toggle__text">Try on this site</span>
+                </label>
+                <div id="tryModeNote" class="hint hint--hidden" role="note" aria-live="polite">
+                    <span class="hint__icon">⚠️</span>
+                    <span class="hint__text">Experimental mode enabled: Detection and auto-fill may be less accurate on this site. Please review before submitting.</span>
+                </div>
+            </div>
         </section>
 
         <section class="popup__info" id="formInfo">

@@ -64,6 +64,8 @@ function initializeElements() {
   elements = {
     fillFormBtn: document.getElementById('fillFormBtn'),
     detectFieldsBtn: document.getElementById('detectFieldsBtn'),
+    tryModeToggle: document.getElementById('tryModeToggle'),
+    tryModeNote: document.getElementById('tryModeNote'),
     statusIndicator: document.getElementById('statusIndicator'),
     statusDot: document.querySelector('.popup__status-dot'),
     statusText: document.querySelector('.popup__status-text'),
@@ -83,9 +85,52 @@ function initializeElements() {
 function setupEventListeners() {
   elements.detectFieldsBtn.addEventListener('click', handleDetectFields);
   elements.fillFormBtn.addEventListener('click', handleFillForm);
+  elements.tryModeToggle.addEventListener('change', handleModeChange);
   elements.setupProfileBtn.addEventListener('click', handleSetupProfile);
   elements.settingsBtn.addEventListener('click', handleOpenSettings);
   elements.helpBtn.addEventListener('click', handleShowHelp);
+}
+
+/**
+ * Returns true if 'Try on this site' mode is enabled
+ */
+function isTryModeEnabled() {
+  return !!(elements.tryModeToggle && elements.tryModeToggle.checked);
+}
+
+/**
+ * Update Detect Fields button availability based on current URL and mode
+ */
+async function updateDetectFieldsAvailability(currentUrl) {
+  try {
+    let url = currentUrl;
+    if (!url) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      url = tab?.url || '';
+    }
+    const supported = isJobPortal(url);
+    elements.detectFieldsBtn.disabled = !supported && !isTryModeEnabled();
+  } catch (e) {
+    // Fallback: keep button enabled only when try mode is on
+    elements.detectFieldsBtn.disabled = !isTryModeEnabled();
+  }
+}
+
+/**
+ * Handle mode change by updating Detect Fields button availability
+ */
+async function handleModeChange() {
+  await updateDetectFieldsAvailability();
+  if (elements.tryModeNote) {
+    const hidden = !isTryModeEnabled();
+    elements.tryModeNote.classList.toggle('hint--hidden', hidden);
+    if (hidden) {
+      elements.fillFormBtn.disabled = true;
+      elements.detectFieldsBtn.disabled = true;
+    } else {
+      elements.detectFieldsBtn.disabled = false;
+    }
+  }
 }
 
 /**
@@ -152,6 +197,8 @@ async function checkCurrentPageForm() {
 
     updateStatusDisplay('active', 'Job portal detected');
 
+    elements.detectFieldsBtn.disabled = false;
+
     // Try to get cached detection results
     const result = await chrome.storage.local.get(POPUP_STORAGE_KEYS.LAST_DETECTION);
     if (result[POPUP_STORAGE_KEYS.LAST_DETECTION] &&
@@ -176,7 +223,8 @@ function isJobPortal(url) {
     'glassdoor.com',
     '127.0.0.1',
     'localhost',
-    'workday.com'
+    'workday.com',
+    `myworkdayjobs.com`
   ];
 
   return jobPortals.some(portal => url.includes(portal));
@@ -190,7 +238,7 @@ async function ensureContentScriptInjected(tabId) {
   try {
     console.log('=== Starting Content Script Injection Process ===');
     console.log('Tab ID:', tabId);
-    
+
     // Get tab info for debugging
     try {
       const tab = await chrome.tabs.get(tabId);
@@ -199,7 +247,7 @@ async function ensureContentScriptInjected(tabId) {
     } catch (tabError) {
       console.warn('Could not get tab info:', tabError);
     }
-    
+
     // Try to ping the content script first
     try {
       console.log('Testing existing content script...');
@@ -214,7 +262,7 @@ async function ensureContentScriptInjected(tabId) {
     }
 
     console.log('Starting script injection process...');
-    
+
     // Try injecting masterInjection.js first (optional dependency)
     try {
       console.log('Attempting to inject masterInjection.js...');
@@ -254,7 +302,7 @@ async function ensureContentScriptInjected(tabId) {
 
     // Wait longer for initialization
     await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     // Verify the injection worked
     try {
       console.log('Verifying content script is responding...');
@@ -305,7 +353,7 @@ async function handleDetectFields() {
     }
 
     // Check if tab URL is supported
-    if (!isJobPortal(tab.url)) {
+    if (!isJobPortal(tab.url) && !isTryModeEnabled()) {
       updateStatusDisplay('inactive', 'Not a supported job portal');
       return;
     }
@@ -421,12 +469,12 @@ async function handleFillForm() {
     const detectionResponse = await chrome.tabs.sendMessage(tab.id, {
       action: MESSAGES.DETECT_FIELDS
     });
-    
+
     if (!detectionResponse || !detectionResponse.success || !detectionResponse.fields || detectionResponse.fields.length === 0) {
       updateStatusDisplay('inactive', 'No fields detected');
       return;
     }
-    
+
     console.log(`${detectionResponse.fields.length} fields detected, proceeding with fill...`);
 
     // Send message to content script to fill form
@@ -442,7 +490,7 @@ async function handleFillForm() {
       const filledCount = response.filledFields || 0;
       const totalFields = response.totalFields || 0;
       updateStatusDisplay('active', `Form filled: ${filledCount}/${totalFields} fields`);
-      
+
       if (response.fillErrors && response.fillErrors.length > 0) {
         console.warn('Some fields failed to fill:', response.fillErrors);
       }

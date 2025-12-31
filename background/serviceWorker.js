@@ -19,15 +19,15 @@ chrome.tabs.onUpdated.addListener(handleTabUpdate);
  */
 async function handleInstall(details) {
   console.log('Auto-Fill Extension installed:', details.reason);
-  
+
   try {
     // Initialize default settings
     await initializeDefaultSettings();
-    
+
     // Set up initial state
     await chrome.action.setBadgeText({ text: '' });
     await chrome.action.setBadgeBackgroundColor({ color: '#ffe600' });
-    
+
     // Show welcome message on first install
     if (details.reason === 'install') {
       await showWelcomeNotification();
@@ -42,11 +42,11 @@ async function handleInstall(details) {
  */
 async function handleStartup() {
   console.log('Auto-Fill Extension started');
-  
+
   try {
     // Clear any temporary data
     await clearTemporaryData();
-    
+
     // Reset badge
     await chrome.action.setBadgeText({ text: '' });
   } catch (error) {
@@ -58,18 +58,13 @@ async function handleStartup() {
  * Initialize default extension settings
  */
 async function initializeDefaultSettings() {
+  const portalHosts = await loadPortalHosts();
   const defaultSettings = {
     version: '1.0.0',
     autoFillEnabled: true,
     securityTimeout: 3600000, // 1 hour in milliseconds
     detectionSensitivity: 'medium',
-    supportedPortals: [
-      'linkedin.com',
-      'indeed.com',
-      'glassdoor.com',
-      'monster.com',
-      'ziprecruiter.com'
-    ],
+    supportedPortals: portalHosts,
     fieldMappings: {
       name: ['name', 'full-name', 'fullname', 'applicant-name'],
       email: ['email', 'email-address', 'e-mail'],
@@ -79,7 +74,7 @@ async function initializeDefaultSettings() {
       skills: ['skills', 'technical-skills', 'expertise']
     }
   };
-  
+
   try {
     const result = await chrome.storage.local.get('extensionSettings');
     if (!result.extensionSettings) {
@@ -92,6 +87,28 @@ async function initializeDefaultSettings() {
 }
 
 /**
+ * Load supported portal hosts from centralized config
+ * @returns {Promise<string[]>} List of host substrings
+ */
+async function loadPortalHosts() {
+  const fallbackHosts = ['127.0.0.1', 'localhost', 'linkedin.com', 'indeed.com', 'glassdoor.com', 'monster.com', 'myworkdayjobs.com'];
+  try {
+    const url = chrome.runtime.getURL('utils/portals.json');
+    const res = await fetch(url);
+    const data = await res.json();
+    const hosts = (data.portals || []).flatMap(p => p.hosts);
+    // Fallback if empty
+    if (!hosts || hosts.length === 0) {
+      return fallbackHosts;
+    }
+    return hosts;
+  } catch (e) {
+    console.warn('Failed to load portals.json, using fallback list:', e);
+    return fallbackHosts;
+  }
+}
+
+/**
  * Handle messages from popup and content scripts
  * @param {Object} message - Message object
  * @param {Object} sender - Message sender info
@@ -99,33 +116,33 @@ async function initializeDefaultSettings() {
  */
 function handleMessage(message, sender, sendResponse) {
   console.log('Received message:', message.action, 'from:', sender.tab?.url || 'popup');
-  
+
   switch (message.action) {
     case 'getSettings':
       handleGetSettings(sendResponse);
       break;
-      
+
     case 'updateSettings':
       handleUpdateSettings(message.settings, sendResponse);
       break;
-      
+
     case 'clearData':
       handleClearData(sendResponse);
       break;
-      
+
     case 'reportFieldDetection':
       handleFieldDetectionReport(message, sender, sendResponse);
       break;
-      
+
     case 'reportFillSuccess':
       handleFillSuccessReport(message, sender, sendResponse);
       break;
-      
+
     default:
       console.warn('Unknown message action:', message.action);
       sendResponse({ success: false, error: 'Unknown action' });
   }
-  
+
   // Return true to indicate async response
   return true;
 }
@@ -137,9 +154,9 @@ function handleMessage(message, sender, sendResponse) {
 async function handleGetSettings(sendResponse) {
   try {
     const result = await chrome.storage.local.get('extensionSettings');
-    sendResponse({ 
-      success: true, 
-      settings: result.extensionSettings || {} 
+    sendResponse({
+      success: true,
+      settings: result.extensionSettings || {}
     });
   } catch (error) {
     console.error('Error getting settings:', error);
@@ -171,14 +188,14 @@ async function handleClearData(sendResponse) {
     // Clear all stored data except settings
     const result = await chrome.storage.local.get('extensionSettings');
     await chrome.storage.local.clear();
-    
+
     // Restore settings
     if (result.extensionSettings) {
-      await chrome.storage.local.set({ 
-        extensionSettings: result.extensionSettings 
+      await chrome.storage.local.set({
+        extensionSettings: result.extensionSettings
       });
     }
-    
+
     sendResponse({ success: true });
   } catch (error) {
     console.error('Error clearing data:', error);
@@ -195,26 +212,26 @@ async function handleClearData(sendResponse) {
 async function handleFieldDetectionReport(message, sender, sendResponse) {
   try {
     const { fieldsCount, portal } = message;
-    
+
     // Update badge with field count
     if (fieldsCount > 0) {
-      await chrome.action.setBadgeText({ 
+      await chrome.action.setBadgeText({
         text: fieldsCount.toString(),
-        tabId: sender.tab.id 
+        tabId: sender.tab.id
       });
-      await chrome.action.setBadgeBackgroundColor({ 
+      await chrome.action.setBadgeBackgroundColor({
         color: '#44ff44' // Success green
       });
     } else {
-      await chrome.action.setBadgeText({ 
+      await chrome.action.setBadgeText({
         text: '',
-        tabId: sender.tab.id 
+        tabId: sender.tab.id
       });
     }
-    
+
     // Log analytics (could be extended for usage tracking)
     console.log(`Fields detected on ${portal}: ${fieldsCount}`);
-    
+
     sendResponse({ success: true });
   } catch (error) {
     console.error('Error handling field detection report:', error);
@@ -231,30 +248,30 @@ async function handleFieldDetectionReport(message, sender, sendResponse) {
 async function handleFillSuccessReport(message, sender, sendResponse) {
   try {
     const { fieldsFilledCount } = message;
-    
+
     // Update badge to show success
-    await chrome.action.setBadgeText({ 
+    await chrome.action.setBadgeText({
       text: '✓',
-      tabId: sender.tab.id 
+      tabId: sender.tab.id
     });
-    await chrome.action.setBadgeBackgroundColor({ 
+    await chrome.action.setBadgeBackgroundColor({
       color: '#ffe600' // Success yellow
     });
-    
+
     // Clear badge after 3 seconds
     setTimeout(async () => {
       try {
-        await chrome.action.setBadgeText({ 
+        await chrome.action.setBadgeText({
           text: '',
-          tabId: sender.tab.id 
+          tabId: sender.tab.id
         });
       } catch (error) {
         // Tab might be closed, ignore error
       }
     }, 3000);
-    
+
     console.log(`Form filled successfully: ${fieldsFilledCount} fields`);
-    
+
     sendResponse({ success: true });
   } catch (error) {
     console.error('Error handling fill success report:', error);
@@ -273,15 +290,15 @@ async function handleTabUpdate(tabId, changeInfo, tab) {
   if (changeInfo.status !== 'complete' || !tab.url) {
     return;
   }
-  
+
   try {
     // Check if this is a supported job portal
     const isJobPortal = await checkIfJobPortal(tab.url);
-    
+
     if (isJobPortal) {
       // Inject content script if not already present
       await ensureContentScriptInjected(tabId);
-      
+
       // Reset badge for new page
       await chrome.action.setBadgeText({ text: '', tabId });
     }
@@ -300,7 +317,7 @@ async function checkIfJobPortal(url) {
     const result = await chrome.storage.local.get('extensionSettings');
     const settings = result.extensionSettings || {};
     const supportedPortals = settings.supportedPortals || [];
-    
+
     return supportedPortals.some(portal => url.includes(portal));
   } catch (error) {
     console.error('Error checking job portal:', error);
@@ -316,14 +333,14 @@ async function ensureContentScriptInjected(tabId) {
   try {
     // Try to ping existing content script
     const response = await chrome.tabs.sendMessage(tabId, { action: 'ping' });
-    
+
     if (!response) {
       // Content script not present, inject it
       await chrome.scripting.executeScript({
         target: { tabId },
         files: ['content/detector.js']
       });
-      
+
       console.log('Content script injected into tab:', tabId);
     }
   } catch (error) {
@@ -333,7 +350,7 @@ async function ensureContentScriptInjected(tabId) {
         target: { tabId },
         files: ['content/detector.js']
       });
-      
+
       console.log('Content script injected into tab:', tabId);
     } catch (injectionError) {
       console.error('Error injecting content script:', injectionError);
@@ -360,10 +377,10 @@ async function clearTemporaryData() {
   try {
     // Remove temporary detection results older than 1 hour
     const result = await chrome.storage.local.get('lastDetection');
-    
+
     if (result.lastDetection) {
       const oneHourAgo = Date.now() - 3600000; // 1 hour
-      
+
       if (result.lastDetection.timestamp < oneHourAgo) {
         await chrome.storage.local.remove('lastDetection');
         console.log('Cleared old detection data');

@@ -3,14 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JobPortal Pro - Apply Now</title>
+    <title>Dummy JobPortal Pro - Apply Now</title>
     <link rel="stylesheet" href="job-portal-test.css">
 </head>
 <body>
     <div class="container">
         <!-- Sidebar Controls -->
         <div class="sidebar">
-            <h2>🛠️ Field Controls</h2>
+            <div class="sidebar-header">
+                <h2>🛠️ Field Controls</h2>
+                <label class="theme-toggle" title="Toggle Dark/Light Mode">
+                    <input type="checkbox" id="theme-checkbox" onchange="toggleTheme()">
+                    <span class="toggle-track">
+                        <span class="toggle-icon moon">🌙</span>
+                        <span class="toggle-icon sun">☀️</span>
+                        <span class="toggle-thumb"></span>
+                    </span>
+                </label>
+            </div>
 
             <!-- Personal Information Toggles -->
             <div class="field-toggle">
@@ -199,7 +209,7 @@
 
             <!-- Custom Fields Section -->
             <div class="custom-field-section">
-                <h3 style="color: #2c3e50; margin-bottom: 15px; font-size: 16px;">➕ Custom Fields</h3>
+                <h3 style="margin-bottom: 15px; font-size: 16px;">➕ Custom Fields</h3>
                 
                 <button class="add-field-btn" onclick="showCustomFieldCreator()">+ Add Custom Field</button>
                 
@@ -229,7 +239,7 @@
 
         <!-- Main Application Form -->
         <div class="main-content">
-            <h1>JobPortal Pro</h1>
+            <h1>Dummy JobPortal Pro</h1>
             <p class="job-title">Apply for: Senior Software Developer</p>
 
             <form id="jobApplicationForm" onsubmit="handleSubmit(event)">
@@ -401,18 +411,8 @@
                     <!-- Job Experience Sub-section -->
                     <div class="job-experience-section" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e9ecef;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h4 style="color: #2c3e50; margin: 0; font-size: 16px;">🏢 Job Experience</h4>
-                            <button type="button" class="add-experience-btn" onclick="addExperienceCard()" style="
-                                background: #3498db;
-                                color: white;
-                                border: none;
-                                border-radius: 6px;
-                                padding: 8px 16px;
-                                cursor: pointer;
-                                font-size: 12px;
-                                font-weight: 500;
-                                transition: background 0.3s;
-                            ">+ Add Experience</button>
+                            <h4 style="margin: 0; font-size: 16px;">🏢 Job Experience</h4>
+                            <button type="button" class="add-experience-btn" onclick="addExperienceCard()">+ Add Experience</button>
                         </div>
                         
                         <div id="experience-cards-container">

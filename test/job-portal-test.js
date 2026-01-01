@@ -5,6 +5,29 @@ let customFieldCounter = 0;
 // Track experience cards
 let experienceCounter = 0;
 
+// Theme Management
+function initializeTheme() {
+    // Get saved theme or default to dark
+    const savedTheme = localStorage.getItem('jobPortalTheme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeToggle(savedTheme);
+}
+
+function toggleTheme() {
+    const checkbox = document.getElementById('theme-checkbox');
+    const newTheme = checkbox.checked ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('jobPortalTheme', newTheme);
+}
+
+function updateThemeToggle(theme) {
+    const checkbox = document.getElementById('theme-checkbox');
+    if (checkbox) {
+        checkbox.checked = theme === 'light';
+    }
+}
+
 // Field toggle functionality
 function toggleField(fieldName) {
     console.debug(`toggleField called for: ${fieldName}`);
@@ -378,6 +401,9 @@ function toggleEndDate(cardId) {
 
 // Initialize page
 window.addEventListener('load', () => {
+    // Initialize theme
+    initializeTheme();
+    
     // Default to showing basic fields for testing
     const defaultFields = ['firstName', 'lastName', 'fullName', 'email', 'phone', 'linkedin', 'github', 'portfolio', 'totalExperience',  'currentSalary', 'expectedSalary', 'currentLocation'];
     defaultFields.forEach(fieldName => {

@@ -850,12 +850,6 @@ async function detectFormFields() {
     if (isElementExcluded(element)) {
       continue;
     }
-
-    //  This is for testing in 'job-portal-test.html' file
-    // if element baseURI contains 'job-portal-test.html' and its index is less then 27 then skip this iteration
-    if (element.baseURI && element.baseURI.includes('job-portal-test.html') && index < 27) {
-      continue;
-    }
     
     // Use advanced detection for each element
     const detectionResult = await detectFieldAdvanced(element);

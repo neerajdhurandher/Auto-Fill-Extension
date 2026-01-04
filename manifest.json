@@ -15,7 +15,9 @@
     "https://www.indeed.com/*",
     "https://www.glassdoor.com/*",
     "https://www.monster.com/*",
-    "https://www.ziprecruiter.com/*",
+    "https://www.workday.com/*",
+    "https://www.myworkdayjobs.com/*",
+    "https://neerajdhurandher.me",
     "http://127.0.0.1:*/*",
     "http://localhost:*/*",
     "file://*/*"

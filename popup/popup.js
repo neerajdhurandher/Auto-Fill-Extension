@@ -24,6 +24,8 @@ let storageManager = null;
  * Initialize popup when DOM is loaded
  */
 document.addEventListener('DOMContentLoaded', async () => {
+  // Preload portal hosts from centralized config
+  await preloadPortalHosts();
   await initializeStorageManager();
   initializeElements();
   await loadProfileStatus();
@@ -96,6 +98,21 @@ function setupEventListeners() {
  */
 function isTryModeEnabled() {
   return !!(elements.tryModeToggle && elements.tryModeToggle.checked);
+}
+
+// Cached portal hosts loaded from utils/portals.json
+let PORTAL_HOSTS = null;
+
+async function preloadPortalHosts() {
+  try {
+    const url = chrome.runtime.getURL('utils/portals.json');
+    const res = await fetch(url);
+    const data = await res.json();
+    PORTAL_HOSTS = (data.portals || []).flatMap(p => p.hosts);
+  } catch (e) {
+    // Keep null to use fallback list
+    console.warn('Failed to preload portal hosts:', e);
+  }
 }
 
 /**
@@ -217,16 +234,18 @@ async function checkCurrentPageForm() {
  * @returns {boolean} Whether URL is a job portal
  */
 function isJobPortal(url) {
-  const jobPortals = [
+  const fallback = [
     'linkedin.com',
     'indeed.com',
     'glassdoor.com',
-    '127.0.0.1',
-    'localhost',
+    'monster.com',
+    'ziprecruiter.com',
     'workday.com',
-    `myworkdayjobs.com`
+    'myworkdayjobs.com',
+    '127.0.0.1',
+    'localhost'
   ];
-
+  const jobPortals = PORTAL_HOSTS && PORTAL_HOSTS.length ? PORTAL_HOSTS : fallback;
   return jobPortals.some(portal => url.includes(portal));
 }
 

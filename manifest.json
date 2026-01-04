@@ -17,10 +17,7 @@
     "https://www.monster.com/*",
     "https://www.workday.com/*",
     "https://www.myworkdayjobs.com/*",
-    "https://neerajdhurandher.me",
-    "http://127.0.0.1:*/*",
-    "http://localhost:*/*",
-    "file://*/*"
+    "https://neerajdhurandher.me"
   ],
   
   "background": {

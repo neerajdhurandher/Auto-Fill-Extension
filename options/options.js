@@ -20,6 +20,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 /**
+ * Open dummy job portal in a new tab for testing
+ */
+document.getElementById('test-dummy-portal').addEventListener('click', function () {
+  window.open('https://neerajdhurandher.me/auto-fill-extension-website/dummy-job-portal', '_blank');
+});
+
+/**
  * Cache DOM elements for better performance
  */
 function initializeElements() {
@@ -27,7 +34,7 @@ function initializeElements() {
     // Navigation
     navButtons: document.querySelectorAll('.nav__button'),
     tabs: document.querySelectorAll('.tab'),
-    
+
     // Profile form - Personal Details
     profileForm: document.getElementById('profileForm'),
     firstName: document.getElementById('firstName'),
@@ -36,7 +43,7 @@ function initializeElements() {
     phoneCountryCode: document.getElementById('phoneCountryCode'),
     phoneNumber: document.getElementById('phoneNumber'),
     phoneType: document.getElementById('phoneType'),
-    
+
     // Address fields
     addressLine1: document.getElementById('addressLine1'),
     addressLine2: document.getElementById('addressLine2'),
@@ -46,7 +53,7 @@ function initializeElements() {
     country: document.getElementById('country'),
     currentLocation: document.getElementById('currentLocation'),
     willingToRelocate: document.getElementById('willingToRelocate'),
-    
+
     // Professional fields
     totalExperience: document.getElementById('totalExperience'),
     noticePeriod: document.getElementById('noticePeriod'),
@@ -59,7 +66,7 @@ function initializeElements() {
     addExperienceBtn: document.getElementById('addExperienceBtn'),
     skills: document.getElementById('skills'),
     coverLetter: document.getElementById('coverLetter'),
-    
+
     // Action buttons
     clearProfile: document.getElementById('clearProfile'),
     clearAllData: document.getElementById('clearAllData'),
@@ -75,22 +82,22 @@ function setupEventListeners() {
   elements.navButtons.forEach(button => {
     button.addEventListener('click', handleTabClick);
   });
-  
+
   // Form submission
   elements.profileForm.addEventListener('submit', handleProfileSubmit);
-  
+
   // Experience management
   elements.addExperienceBtn.addEventListener('click', handleAddExperience);
-  
+
   // Event delegation for experience entries
   elements.experienceList.addEventListener('click', handleExperienceListClick);
   elements.experienceList.addEventListener('change', handleExperienceListChange);
-  
+
   // Action buttons
   elements.clearProfile.addEventListener('click', handleClearProfile);
   elements.clearAllData.addEventListener('click', handleClearAllData);
   elements.exportData.addEventListener('click', handleExportData);
-  
+
   // Auto-save on form changes (debounced)
   const formInputs = elements.profileForm.querySelectorAll('input:not([data-no-autosave]), textarea:not([data-no-autosave]), select:not([data-no-autosave])');
   formInputs.forEach(input => {
@@ -146,7 +153,7 @@ async function initializeStorageManager() {
 async function loadExistingData() {
   try {
     showLoading(true);
-    
+
     if (storageManager) {
       // Load user profile
       const profileData = await storageManager.getUserProfile();
@@ -168,19 +175,19 @@ async function loadExistingData() {
  */
 function populateProfileForm(profileData) {
   const { personal, professional } = profileData;
-  
+
   if (personal) {
     elements.firstName.value = personal.firstName || '';
     elements.lastName.value = personal.lastName || '';
     elements.email.value = personal.email || '';
-    
+
     // Phone fields
     if (personal.phone) {
       elements.phoneCountryCode.value = personal.phone.countryCode || '+1';
       elements.phoneNumber.value = personal.phone.number || '';
       elements.phoneType.value = personal.phone.type || 'mobile';
     }
-    
+
     // Address fields
     if (personal.address) {
       elements.addressLine1.value = personal.address.line1 || '';
@@ -190,36 +197,36 @@ function populateProfileForm(profileData) {
       elements.postalCode.value = personal.address.postalCode || '';
       elements.country.value = personal.address.country || '';
     }
-    
+
     // Location and relocation preferences
     elements.currentLocation.value = personal.currentLocation || '';
     elements.willingToRelocate.value = personal.willingToRelocate || '';
   }
-  
+
   if (professional) {
     // Professional details
     elements.totalExperience.value = professional.totalExperience || '';
     elements.noticePeriod.value = professional.noticePeriod || '';
     elements.currentSalary.value = professional.currentSalary || '';
     elements.expectedSalary.value = professional.expectedSalary || '';
-    
+
     // Professional links
     elements.linkedinUrl.value = professional.linkedinUrl || '';
     elements.githubUrl.value = professional.githubUrl || '';
     elements.portfolioUrl.value = professional.portfolioUrl || '';
-    
+
     elements.skills.value = professional.skills?.join(', ') || '';
     elements.coverLetter.value = professional.coverLetter || '';
-    
+
     // Load experience entries - handle both naming conventions for backward compatibility
     const experienceData = professional.experiences || professional.experience || [];
-    console.log('Loading profile data:', { 
-      hasExperiences: !!(professional.experiences), 
+    console.log('Loading profile data:', {
+      hasExperiences: !!(professional.experiences),
       hasExperience: !!(professional.experience),
       experienceCount: experienceData.length,
       experienceData: experienceData
     });
-    
+
     if (experienceData.length > 0) {
       experienceData.forEach(exp => {
         addExperienceEntry(exp);
@@ -248,6 +255,10 @@ function handleTabClick(event) {
  * @param {string} tabName - Tab to show
  */
 function showTab(tabName) {
+  if(tabName === "dummy_portal") {
+    // Dummy portal tab will redirect to external site, no need to show tab
+    return;
+  }
   // Update navigation
   elements.navButtons.forEach(button => {
     button.classList.remove('nav__button--active');
@@ -255,7 +266,7 @@ function showTab(tabName) {
       button.classList.add('nav__button--active');
     }
   });
-  
+
   // Update content
   elements.tabs.forEach(tab => {
     tab.classList.remove('tab--active');
@@ -263,7 +274,7 @@ function showTab(tabName) {
       tab.classList.add('tab--active');
     }
   });
-  
+
   currentTab = tabName;
 }
 
@@ -273,9 +284,9 @@ function showTab(tabName) {
  */
 async function handleProfileSubmit(event) {
   event.preventDefault();
-  
+
   try {
-    showLoading(true); 
+    showLoading(true);
     // Scroll to top of the page after successful save
     window.scrollTo({
       top: 0,
@@ -335,7 +346,7 @@ async function saveProfileData() {
       notifications: true
     }
   };
-  
+
   if (storageManager) {
     await storageManager.setUserProfile(profileData);
   } else {
@@ -361,7 +372,7 @@ function addExperienceEntry(experienceData = {}) {
   const entryDiv = document.createElement('div');
   entryDiv.className = 'experience-entry';
   entryDiv.dataset.entryId = entryId;
-  
+
   entryDiv.innerHTML = `
     <div class="experience-entry__header">
       <h4 class="experience-entry__title">Experience #${displayNumber}</h4>
@@ -423,9 +434,9 @@ function addExperienceEntry(experienceData = {}) {
       </div>
     </div>
   `;
-  
+
   elements.experienceList.appendChild(entryDiv);
-  
+
   // Add event listeners for auto-save
   const inputs = entryDiv.querySelectorAll('input, textarea');
   inputs.forEach(input => {
@@ -445,18 +456,18 @@ function removeExperienceEntry(entryId) {
       console.warn(`Experience entry with ID ${entryId} not found`);
       return false;
     }
-    
+
     // Add visual feedback
     entryDiv.style.opacity = '0.5';
     entryDiv.style.pointerEvents = 'none';
-    
+
     setTimeout(() => {
       entryDiv.remove();
       updateExperienceNumbers();
       handleAutoSave();
       console.log('Experience entry removed successfully');
     }, 150);
-    
+
     return true;
   } catch (error) {
     console.error('Error removing experience entry:', error);
@@ -485,7 +496,7 @@ function updateExperienceNumbers() {
 function toggleEndDate(entryId) {
   const checkbox = document.getElementById(`currentJob_${entryId}`);
   const endDateInput = document.getElementById(`endDate_${entryId}`);
-  
+
   if (checkbox && endDateInput) {
     if (checkbox.checked) {
       endDateInput.disabled = true;
@@ -503,13 +514,13 @@ function toggleEndDate(entryId) {
 function collectExperienceData() {
   const experiences = [];
   const entries = elements.experienceList.querySelectorAll('.experience-entry');
-  
+
   entries.forEach(entry => {
     const entryId = entry.dataset.entryId;
     const jobElementId = entry.querySelector('.experience-entry__title')?.textContent.match(/Experience #(\d+)/)?.[1] || '0';
     const jobTitle = entry.querySelector(`[id*="jobTitle"]`)?.value.trim();
     const company = entry.querySelector(`[id*="company"]`)?.value.trim();
-    
+
     // Only include entries with at least job title and company
     if (jobTitle && company) {
       const locationInput = entry.querySelector(`[id*="location"]`);
@@ -517,7 +528,7 @@ function collectExperienceData() {
       const endDateInput = entry.querySelector(`[id*="endDate"]`);
       const currentJobInput = entry.querySelector(`[id*="currentJob"]`);
       const descriptionInput = entry.querySelector(`[id*="description"]`);
-      
+
       experiences.push({
         jobIndex: jobElementId,
         jobTitle: jobTitle,
@@ -530,7 +541,7 @@ function collectExperienceData() {
       });
     }
   });
-  
+
   return experiences;
 }
 
@@ -555,20 +566,20 @@ async function handleClearProfile() {
   if (!confirm('Are you sure you want to clear all profile data? This action cannot be undone.')) {
     return;
   }
-  
+
   try {
     showLoading(true);
-    
+
     // Clear form
     elements.profileForm.reset();
-    
+
     // Clear from storage
     if (storageManager) {
       await storageManager.setUserProfile({});
     } else {
       await chrome.storage.local.remove('userProfile');
     }
-    
+
     showMessage('Profile cleared successfully', 'success');
   } catch (error) {
     console.error('Error clearing profile:', error);
@@ -585,19 +596,19 @@ async function handleClearAllData() {
   if (!confirm('Are you sure you want to clear ALL extension data? This includes your profile, settings, and cached data. This action cannot be undone.')) {
     return;
   }
-  
+
   try {
     showLoading(true);
-    
+
     if (storageManager) {
       await storageManager.clearAllData();
     } else {
       await chrome.storage.local.clear();
     }
-    
+
     // Reset form
     elements.profileForm.reset();
-    
+
     showMessage('All data cleared successfully', 'success');
   } catch (error) {
     console.error('Error clearing all data:', error);
@@ -613,13 +624,13 @@ async function handleClearAllData() {
 async function handleExportData() {
   try {
     showLoading(true);
-    
+
     let exportData = {};
-    
+
     if (storageManager) {
       const profile = await storageManager.getUserProfile();
       const settings = await storageManager.getSettings();
-      
+
       exportData = {
         profile: profile || {},
         settings: settings || {},
@@ -634,12 +645,12 @@ async function handleExportData() {
         version: '1.0.0'
       };
     }
-    
+
     // Create download
     const dataStr = JSON.stringify(exportData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
-    
+
     const a = document.createElement('a');
     a.href = url;
     a.download = `autofill-data-${new Date().toISOString().split('T')[0]}.json`;
@@ -647,7 +658,7 @@ async function handleExportData() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     showMessage('Data exported successfully', 'success');
   } catch (error) {
     console.error('Error exporting data:', error);
@@ -679,16 +690,16 @@ function showMessage(text, type) {
   // Remove existing messages
   const existingMessages = document.querySelectorAll('.message');
   existingMessages.forEach(msg => msg.remove());
-  
+
   // Create new message
   const message = document.createElement('div');
   message.className = `message message--${type}`;
   message.textContent = text;
-  
+
   // Insert at top of content
   const content = document.querySelector('.content');
   content.insertBefore(message, content.firstChild);
-  
+
   // Auto-remove after 5 seconds
   setTimeout(() => {
     if (message.parentNode) {

@@ -7,6 +7,7 @@
     { "name": "Monster", "hosts": ["monster.com"] },
     { "name": "ZipRecruiter", "hosts": ["ziprecruiter.com"] },
     { "name": "Workday", "hosts": ["workday.com", "myworkdayjobs.com"] },
-    { "name": "Local Dev", "hosts": ["127.0.0.1", "localhost"] }
+    { "name": "Local Dev", "hosts": ["127.0.0.1", "localhost"] },
+    { "name": "Personal Site", "hosts": ["neerajdhurandher.me"] }
   ]
 }

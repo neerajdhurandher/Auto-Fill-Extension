@@ -1054,6 +1054,52 @@ async function handleMessage(request, sender, sendResponse) {
     switch (messageType) {
       case 'detectFields':
       case 'GET_FIELDS':
+        // Try portal-specific detection first via PortalRouter
+        let detectionResult = null;
+        
+        if (typeof PortalRouter !== 'undefined' && PortalRouter.detectFields) {
+          console.log('[Master Detector] Using PortalRouter for detection...');
+          try {
+            detectionResult = await PortalRouter.detectFields();
+            
+            if (detectionResult && detectionResult.fields) {
+              console.log(`[Master Detector] ✓ Portal-specific detection successful (${detectionResult.portalType})`);
+              
+              // Update global detectedFields for injection later
+              detectedFields = Object.values(detectionResult.fields);
+              
+              // Convert to response format
+              const responseFields = detectedFields.map(f => ({
+                category: f.label || f.selector || 'unknown',
+                confidence: f.isRequired ? 1.0 : 0.8,
+                type: f.type,
+                name: f.element?.name || '',
+                id: f.element?.id || '',
+                selector: f.selector,
+                currentValue: f.currentValue,
+                isRequired: f.isRequired,
+                isVisible: f.isVisible
+              }));
+              
+              sendResponse({
+                success: true,
+                fields: responseFields,
+                totalFields: responseFields.length,
+                highConfidenceFields: responseFields.filter(f => f.confidence > 0.7).length,
+                portal: detectionResult.portalType || 'unknown',
+                detectorType: detectionResult.detectionMethod || 'portal-specific',
+                formProgress: detectionResult.formProgress
+              });
+              break;
+            }
+          } catch (error) {
+            console.warn('[Master Detector] Portal-specific detection failed, using fallback:', error);
+          }
+        } else {
+          console.log('[Master Detector] PortalRouter not available, using master detector');
+        }
+        
+        // Fallback to master detector
         const fields = await detectFormFields();
         const responseFields = fields.map(f => ({
           category: f.category,
@@ -1106,7 +1152,49 @@ async function handleMessage(request, sender, sendResponse) {
           console.warn('WARNING: No profileData in request! Using empty object.');
         }
         
-        // Require masterInjection for form filling - no fallback
+        // Try portal-specific injection first via PortalRouter
+        if (typeof PortalRouter !== 'undefined' && PortalRouter.injectData) {
+          console.log('[Master Detector] Using PortalRouter for injection...');
+          try {
+            // Prepare detected fields in the format expected by portal injectors
+            const detectedFieldsData = {
+              fields: detectedFields.reduce((acc, field) => {
+                // Try to extract a meaningful key from the field
+                const fieldKey = field.category || field.name || field.id || 'unknown';
+                acc[fieldKey] = {
+                  element: field.element,
+                  type: field.type,
+                  selector: field.selector,
+                  isRequired: field.isRequired || false,
+                  isVisible: field.isVisible !== false
+                };
+                return acc;
+              }, {})
+            };
+            
+            const injectionResult = await PortalRouter.injectData(detectedFieldsData, profileData);
+            
+            if (injectionResult && injectionResult.success) {
+              console.log('[Master Detector] ✓ Portal-specific injection successful');
+              sendResponse({
+                success: true,
+                filledFields: injectionResult.filled || 0,
+                totalFields: injectionResult.filled + injectionResult.failed + injectionResult.skipped,
+                fillResults: injectionResult.details || [],
+                fillErrors: injectionResult.details?.filter(d => d.status !== 'success') || [],
+                detectorType: 'portal-specific',
+                injectionEngine: 'portal-specific'
+              });
+              break;
+            }
+          } catch (error) {
+            console.warn('[Master Detector] Portal-specific injection failed, using fallback:', error);
+          }
+        } else {
+          console.log('[Master Detector] PortalRouter not available for injection, using master injection');
+        }
+        
+        // Fallback to masterInjection for form filling
         if (window.masterInjection && window.masterInjection.fillFormWithProfileData) {
           console.log('Using masterInjection for form filling');
           const fillResult = window.masterInjection.fillFormWithProfileData(profileData, detectedFields);

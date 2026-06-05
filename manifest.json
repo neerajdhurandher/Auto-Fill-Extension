@@ -17,6 +17,10 @@
     "https://www.monster.com/*",
     "https://www.workday.com/*",
     "https://www.myworkdayjobs.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.wd5.myworkdayjobs.com/*",
+    "https://*.oraclecloud.com/*",
+    "https://recruiting.oraclecloud.com/*",
     "https://neerajdhurandher.me",
     "http://127.0.0.1:*/*",
     "http://localhost:*/*",
@@ -52,7 +56,12 @@
       "resources": [
         "content/content.css",
         "content/masterInjection.js",
-        "content/masterDetector.js"
+        "content/masterDetector.js",
+        "content/portalRouter.js",
+        "content/workdays/workdays-detector.js",
+        "content/workdays/workdays-injection.js",
+        "content/oracle/oracle-detector.js",
+        "content/oracle/oracle-injection.js"
       ],
       "matches": ["<all_urls>"]
     }

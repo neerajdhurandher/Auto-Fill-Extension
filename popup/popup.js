@@ -282,39 +282,40 @@ async function ensureContentScriptInjected(tabId) {
 
     console.log('Starting script injection process...');
 
-    // Try injecting masterInjection.js first (optional dependency)
-    try {
-      console.log('Attempting to inject masterInjection.js...');
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['content/masterInjection.js']
-      });
-      console.log('✅ masterInjection.js injected successfully');
-      await new Promise(resolve => setTimeout(resolve, 300));
-    } catch (injectionError) {
-      console.warn('⚠️ Failed to inject masterInjection.js (will use fallback):', injectionError);
-      console.warn('Error details:', {
-        message: injectionError.message,
-        stack: injectionError.stack
-      });
-    }
+    // Define all scripts to inject in order
+    const scriptsToInject = [
+      // Portal-specific detectors
+      { file: 'content/workdays/workdays-detector.js', name: 'Workdays Detector', critical: false },
+      { file: 'content/workdays/workdays-injection.js', name: 'Workdays Injection', critical: false },
+      { file: 'content/oracle/oracle-detector.js', name: 'Oracle Detector', critical: false },
+      { file: 'content/oracle/oracle-injection.js', name: 'Oracle Injection', critical: false },
+      
+      // Portal router (critical)
+      { file: 'content/portalRouter.js', name: 'Portal Router', critical: true },
+      
+      // Fallback master scripts
+      { file: 'content/masterDetector.js', name: 'Master Detector', critical: true },
+      { file: 'content/masterInjection.js', name: 'Master Injection', critical: false }
+    ];
 
-    // Inject masterDetector.js (required) to detect fields
-    try {
-      console.log('Attempting to inject masterDetector.js...');
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['content/masterDetector.js']
-      });
-      console.log('✅ masterDetector.js injected successfully');
-    } catch (detectorError) {
-      console.error('❌ CRITICAL: Failed to inject masterDetector.js:', detectorError);
-      console.error('Error details:', {
-        message: detectorError.message,
-        stack: detectorError.stack,
-        name: detectorError.name
-      });
-      throw new Error('Critical: Cannot inject main detector script - ' + detectorError.message);
+    // Inject all scripts sequentially
+    for (const script of scriptsToInject) {
+      try {
+        console.log(`Attempting to inject ${script.name}...`);
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: [script.file]
+        });
+        console.log(`✅ ${script.name} injected successfully`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (injectionError) {
+        if (script.critical) {
+          console.error(`❌ CRITICAL: Failed to inject ${script.name}:`, injectionError);
+          throw new Error(`Critical: Cannot inject ${script.name} - ${injectionError.message}`);
+        } else {
+          console.warn(`⚠️ Failed to inject ${script.name} (non-critical):`, injectionError);
+        }
+      }
     }
 
     console.log('All scripts injected, waiting for initialization...');
